@@ -69,11 +69,11 @@ The app will attempt to call the API first. If those requests fail, each page au
 | **Framework** | React 19 |
 | **Styling** | Tailwind CSS 4 |
 | **UI Components** | shadcn/ui |
-| **Routing** | Wouter |
+| **Routing** | React Router |
 | **Build Tool** | Vite |
-| **Charts & Visualization** | Recharts, Chart.js |
-| **Date Handling** | date-fns |
+| **Charts & Visualization** | Tremor, Recharts |
 | **HTTP Client** | Fetch API with custom hooks |
+| **Production Static Server** | Express (optional) |
 
 ## Project Structure
 
@@ -187,6 +187,8 @@ The application uses several strategies to maintain fast load times and smooth i
 
 The application is a static frontend and can be deployed to any static hosting provider. The built assets in `dist/public/` contain everything needed to serve the application.
 
+If you prefer deploying as a single Node service (instead of pure static hosting), `pnpm start` runs an Express server that serves `dist/public/` and provides an SPA fallback for client-side routes.
+
 ### Manus Hosting
 
 The project is configured for deployment on Manus hosting with automatic domain provisioning and SSL termination.
@@ -199,6 +201,10 @@ To deploy to a custom domain or external hosting provider:
 2. Upload the contents of `dist/public/` to your hosting provider
 3. Configure your web server to serve `dist/public/index.html` for all routes (to support client-side routing)
 4. Update the API proxy configuration if your backend is on a different domain
+
+### Optional analytics
+
+If you use Umami (or a compatible endpoint), set `VITE_ANALYTICS_ENDPOINT` and `VITE_ANALYTICS_WEBSITE_ID` (see `.env.example`). If these are not set, no analytics script is injected.
 
 ## Build and Verification
 
