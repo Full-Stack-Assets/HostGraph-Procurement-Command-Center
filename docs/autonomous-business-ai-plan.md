@@ -152,6 +152,46 @@ Constraint-optimized routing lets the product promise predictable spend and actu
 that promise — the opposite of the unpredictable credit burn that drives the category's
 churn and one-star reviews.
 
+**Implementation shape** (from the engine's Implementation Guide — Node.js; one cycle =
+`orchestrateWithCOO(state)`):
+
+| Function | Role |
+|----------|------|
+| `calculateFitnessScore(agent, task, state)` | Scores a candidate across the five constraint dimensions (weighted aggregation). |
+| `findBestAgentForTask(task, state)` | Scores all candidates → prefer primary type → fallback. Hard thresholds: fitness **> 0.55**, budget utilization **< 0.85**. |
+| `shouldSpawnAgent(state, taskType)` | Predictive spawn: `projected_cost = total_cost + (queue_depth × avg_cost)`; spawn only if `projected_cost ≤ 85%` cap and `queue_of_type > 2`. |
+| `shouldRetireAgent(agent, state)` | Retire at budget utilization **> 0.92** or **> 25** idle ticks; protects working agents. |
+| `logDecision(state, type, agent, task, reason, score)` | Appends to a bounded `decisionLog` (last 100) with timestamp, score, justification. |
+
+The cycle runs: inject tasks → process active agents (accrue cost) → route queued tasks
+(fitness + fallback) → spawn predictively → retire under pressure → cleanup + log. State
+carries `agents`, `tasks`, `totalCost`, `tick`, `decisionLog`, and `constraints`
+(`maxAgents`, `maxCost`). Callers inject via `state.tasks`, configure `state.constraints`,
+and inspect `state.decisionLog`.
+
+**Trade-offs & limits we must design around** (from the engine's Trade-offs Analysis).
+The engine **degrades gracefully in a fixed order — throughput first, then SLA, then cost
+last** ("financial overruns are preferable to service failures"). That priority is a
+*choice*, not a universal truth, so verify it matches each vertical. Known sharp edges:
+- **Hard budget cap is terminal** — at exhaustion it force-stops new tasks (drops work even
+  if capacity exists). For "works while you sleep" continuity, pair with alerts + a soft
+  pre-cap throttle, not just the hard stop.
+- **Static weights** — one weight set can't serve cost-critical and SLA-critical workloads
+  at once; expose per-account/vertical weight profiles.
+- **Fallback can overspend** — routing a summarize task to an expensive vision-class agent
+  is a documented ~3× cost overshoot; cap fallback to compatible tiers.
+- **Spawn thrashing** near the `queue > 2` threshold — add hysteresis/cooldown.
+- **Latency floors are physical** — some agent types can't meet a tight SLA regardless of
+  routing; filter them out of the candidate pool for latency-critical tasks.
+- **When *not* to use it:** hard real-time deadlines, genuinely immutable budgets (the ~15%
+  headroom wastes capacity), or highly homogeneous workloads (simple queue routing suffices).
+
+**Mini CLI & analytics** (`mini`, with `--json` and `--state <path>`):
+`mini stats` · `mini queue` · `mini budget` · `mini health` · `mini decisions` ·
+`mini agent <id>` · `mini project-cost`. Programmatic equivalents live in `mini-extra.js`
+(`getAgentStats`, `analyzeTaskQueue`, `getBudgetReport`, `projectFutureCost`,
+`analyzeDecisions`, `getSystemHealth`) — handy for wiring the public reliability dashboard.
+
 ## 6. Technical architecture (cloud-only, mobile-first, solo-operable)
 
 - **Orchestration:** LangGraph (graph/state-machine; first-class HITL via `interrupt()` +
