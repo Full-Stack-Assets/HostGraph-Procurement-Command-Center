@@ -141,6 +141,12 @@ export function runCycle(state, deps) {
     }
   }
 
+  // accumulate cumulative metrics so analytics/dashboard read true running rates
+  state.metrics ??= {};
+  for (const k of ['dispatched', 'verified', 'failed', 'refunded', 'gated', 'approved', 'rejected', 'deferred', 'retired']) {
+    state.metrics[k] = (state.metrics[k] ?? 0) + (report[k] ?? 0);
+  }
+
   state.tick++;
   return report;
 }
@@ -154,6 +160,7 @@ export function createState({ maxAgents = 9, maxCost = 5, maxAttempts = 3 } = {}
     tasks: [],
     decisionLog: [],
     learnings: [],
+    metrics: {},
     constraints: { maxAgents, maxCost, maxAttempts },
   };
 }

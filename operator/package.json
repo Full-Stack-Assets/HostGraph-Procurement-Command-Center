@@ -5,8 +5,12 @@
   "type": "module",
   "description": "Scaffold for the verified autonomous growth operator (see docs/autonomous-business-ai-plan.md). Zero-dependency Node skeleton of the verified operating loop + COO Engine.",
   "license": "MIT",
+  "bin": {
+    "mini": "bin/mini.js"
+  },
   "scripts": {
     "sim": "node src/sim.js",
+    "mini": "node bin/mini.js",
     "test": "node --test"
   }
 }

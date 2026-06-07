@@ -1,15 +1,18 @@
 // Simulation entry point — runs the verified operator in-memory with no API keys, the
 // same "works in your browser/locally without a backend" posture as the COO Engine demo.
 //
-//   node src/sim.js            # default run
-//   node src/sim.js 20 0.2     # 20 cycles, 20% simulated action-failure rate
+//   node src/sim.js                     # default run
+//   node src/sim.js 20 0.2              # 20 cycles, 20% simulated action-failure rate
+//   node src/sim.js --out ./.state.json # also dump final state for the `mini` CLI
 
+import { writeFileSync } from 'node:fs';
 import { runCycle, createState } from './loop.js';
 import { workers } from './workers.js';
 import { verifyAction } from './verification.js';
 import { makeAutoApprover } from './approvals.js';
 import { validateIdea, GREEN_THRESHOLD } from './validation.js';
 import { createAgent } from './cooEngine.js';
+import { renderDashboard } from './dashboard.js';
 
 // small deterministic PRNG so runs are reproducible
 function mulberry32(seed) {
@@ -22,8 +25,15 @@ function mulberry32(seed) {
   };
 }
 
-const CYCLES = Number(process.argv[2] ?? 12);
-const FAIL_RATE = Number(process.argv[3] ?? 0.15);
+const rawArgs = process.argv.slice(2);
+let outPath = null;
+const positional = [];
+for (let i = 0; i < rawArgs.length; i++) {
+  if (rawArgs[i] === '--out') outPath = rawArgs[++i];
+  else positional.push(rawArgs[i]);
+}
+const CYCLES = Number(positional[0] ?? 12);
+const FAIL_RATE = Number(positional[1] ?? 0.15);
 const rng = mulberry32(42);
 const TYPES = ['outbound', 'content', 'seo', 'ads'];
 
@@ -89,3 +99,10 @@ console.log(`auto-refunds ${totals.refunded} ($${refunded.toFixed(3)}) | gated a
 console.log(`spend $${state.totalCost.toFixed(3)} / cap $${state.constraints.maxCost} (util ${(state.totalCost / state.constraints.maxCost).toFixed(3)})`);
 console.log(`validated learnings recorded: ${state.learnings.length}`);
 console.log(`audit-log entries (capped 100): ${state.decisionLog.length}`);
+
+console.log('\n' + renderDashboard(state));
+
+if (outPath) {
+  writeFileSync(outPath, JSON.stringify(state, null, 2));
+  console.log(`\nstate written to ${outPath}  (try: node bin/mini.js dashboard --state ${outPath})`);
+}

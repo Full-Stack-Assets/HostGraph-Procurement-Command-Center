@@ -21,6 +21,8 @@ plan → dispatch → verify → gate → govern → report → learn
 | **govern** | `src/cooEngine.js` | **COO Engine** — cost-aware retirement + budget circuit breaker. |
 | report | `src/loop.js` | Verified cycle report for the reliability dashboard. |
 | learn | `src/loop.js` | Persist only *validated* outcomes. |
+| analytics | `src/analytics.js` | `mini-extra`-style read-only metrics over state. |
+| dashboard | `src/dashboard.js` | Public reliability dashboard (success/refund/approval rates). |
 
 The COO Engine owns **dispatch** and **govern**; verification and approval gates are
 deliberately separate — the router never grades its own work. The engine constants mirror
@@ -32,10 +34,37 @@ ticks, spawn when `queued_of_type > 2`.
 
 ```bash
 cd operator
-node --test          # run the unit tests
+node --test          # run the unit tests (19 pass)
 node src/sim.js      # run the in-browser-style simulation (no API keys)
 node src/sim.js 20 0.25   # 20 cycles, 25% simulated action-failure rate
 ```
+
+The sim ends by printing the **reliability dashboard** (the plan's trust moat):
+
+```
+┌─ Reliability Dashboard ───────────────────────────────
+│ health:            OK
+│ task-success rate: 68.4%  (39/57 verified)
+│ refund rate:       31.6%  (18 auto-refunds on failed actions)
+│ approval rate:     100.0%  (16/16 gated actions approved)
+│ ...
+```
+
+## `mini` CLI (mirrors the COO Engine's `mini`)
+
+Dump state from a sim run, then inspect it:
+
+```bash
+node src/sim.js --out ./.state.json
+node bin/mini.js dashboard  --state ./.state.json     # publishable reliability metrics
+node bin/mini.js health     --state ./.state.json --json
+node bin/mini.js budget --state ./.state.json
+```
+
+Commands: `stats` · `queue` · `budget` · `health` · `decisions` · `agent <id>` ·
+`project-cost` · `dashboard`. All accept `--json` and `--state <path>`. The programmatic
+equivalents live in `src/analytics.js` (`getAgentStats`, `analyzeTaskQueue`,
+`getBudgetReport`, `projectFutureCost`, `analyzeDecisions`, `getSystemHealth`).
 
 ## What's a stub vs. real
 
