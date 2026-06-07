@@ -75,9 +75,23 @@ meaning: a Constraint-Optimized Orchestrator is, in effect, the product's autono
 *Chief Operating Officer* — it *operates* a validated plan within hard constraints rather
 than acting on a guess.
 
-> Source: `Full-Stack-Assets/COO-Engine-Implementation-` (MIT). Ships with an in-browser
-> simulation dashboard and a `mini` CLI for analytics. See its Algorithm Specification,
-> Benchmark Report, and Trade-offs Analysis for the constraint dimensions and decision rules.
+**Resources** (`Full-Stack-Assets/COO-Engine-Implementation-`, MIT licensed). The site
+ships a marketing landing page plus an in-browser **live dashboard** that runs the engine
+in simulation mode — no API key or backend required — making it a self-contained demo and
+reference:
+
+- **Live dashboard** — `dashboard.html` (in-browser simulation of the orchestrator).
+- **Source / repo** — <https://github.com/Full-Stack-Assets/COO-Engine-Implementation->
+- **Algorithm Specification** — the five constraint dimensions and decision rules
+  ([`01-ALGORITHM-SPECIFICATION.md`](https://github.com/Full-Stack-Assets/COO-Engine-Implementation-/blob/main/01-ALGORITHM-SPECIFICATION.md))
+- **Benchmark Report** — measured performance characteristics
+  ([`02-BENCHMARK-REPORT.md`](https://github.com/Full-Stack-Assets/COO-Engine-Implementation-/blob/main/02-BENCHMARK-REPORT.md))
+- **Trade-offs Analysis** — design decisions and their implications
+  ([`03-TRADEOFFS-ANALYSIS.md`](https://github.com/Full-Stack-Assets/COO-Engine-Implementation-/blob/main/03-TRADEOFFS-ANALYSIS.md))
+- **Implementation Guide** — how the engine maps to the spec
+  ([`COO-IMPLEMENTATION-GUIDE.md`](https://github.com/Full-Stack-Assets/COO-Engine-Implementation-/blob/main/COO-IMPLEMENTATION-GUIDE.md))
+- **README** — CLI usage and the `mini` analytics library
+  ([`README.md`](https://github.com/Full-Stack-Assets/COO-Engine-Implementation-/blob/main/README.md))
 
 **The verified operating loop**, and which steps the COO Engine owns (marked):
 1. **Plan** — turn the validated objective + current state into a ranked work queue.
