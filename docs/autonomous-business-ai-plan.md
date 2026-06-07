@@ -107,21 +107,44 @@ stay separate, independent checks (defense in depth — the router never grades 
 
 **COO Engine capabilities → the plan feature each one delivers:**
 - **Multi-dimensional fitness scoring** — every (agent, task) pair scored across five
-  weighted constraints: *type match, cost, latency, load, budget headroom*. The concrete
+  weighted constraints, each clamped to `[0, 100]`:
+  `finalScore = typeMatch·0.30 + costScore·0.25 + latencyScore·0.20 + loadScore·0.15 + budgetMargin·0.10`
+  (type match = 30%, cost efficiency = 25%, latency fitness = 20%, load balancing = 15%,
+  budget headroom = 10%; type match scores 100 same-type, 50 cross-type). The concrete
   implementation of "route by task / model tier" (§6).
-- **Intelligent fallback routing** — evaluates cross-type routing and uses it only when
-  genuinely the best option (not limited to same-type matching), so work still gets placed
-  under load instead of stalling.
-- **Predictive spawn** — forecasts cost *before* scaling up; spawns an agent only when
-  demand and the budget both justify it. Powers the budget governor's pre-action cost
-  estimates (§4).
-- **Cost-aware retirement** — retires idle agents under budget pressure or after an idle
-  timeout, keeping spend inside hard limits. Half of the circuit-breaker behavior (§4).
+- **Intelligent fallback routing** — evaluates the required-type candidates first; if none
+  qualify it tries *all* types, picks the highest scorer, and flags `fallback_used` in the
+  decision log — so work still gets placed under load instead of stalling.
+- **Predictive spawn** — forecasts cost *before* scaling up; spawns only when agent count
+  is below capacity, queued tasks of that type exist, projected cost stays **< 85% of the
+  budget ceiling**, and demand clears a threshold (`queued_of_type > 2`). Powers the budget
+  governor's pre-action cost estimates (§4).
+- **Cost-aware retirement** — retires agents when cost utilization exceeds **92%** of
+  budget or after **25 idle ticks**; critical cost pressure triggers immediate retirement.
+  Half of the circuit-breaker behavior (§4).
 - **Full audit trail** — every routing, spawn, and retirement decision logged with a
   timestamp, score, and human-readable justification. Feeds the audit-trail guardrail (§6)
   and the public reliability dashboard (§4).
 - **Mini CLI & analytics** — inspect agent stats, queue depth, budget, health, and
   decisions from the command line (`mini`).
+
+**Measured performance** (from the engine's Benchmark Report, vs. a greedy-baseline
+router; 10 runs/scenario, averaged, 95% CIs, significance at *p* < 0.01):
+
+| Dimension | COO Engine | Greedy baseline | Delta |
+|-----------|-----------|-----------------|-------|
+| Cost under budget pressure | — | — | **−23%** operational cost; +3.4% avg savings |
+| Throughput (extreme conditions) | 134 tasks | 98 tasks | **+36%** (+12.5% median across scenarios) |
+| SLA miss rate (variable load) | 2.1% | 8.2% | **−74%** misses |
+| Latency SLA compliance | 89% | 72% | **+15 pp** |
+| P95 latency | 1.6s | 2.3s | **−30%** |
+| Agent-utilization variance | 0.180 | 0.305 | **−41%** |
+| Budget compliance (tight budget) | 100% within $2.00 | overruns | under budget by $0.02 vs. $0.47 overrun |
+| Spawn restraint (tight budget) | 7 agents | 12 agents | **−46%** spawns |
+
+These map directly to the plan's promises: lower/cap-respecting cost (transparent flat
+pricing), higher throughput and SLA compliance (verified, on-time delivery), and tight
+budget adherence (budget governor + circuit breakers).
 
 **Why it matters to the thesis:** the COO Engine is *how* "transparent flat pricing with
 hard caps" and "budget governor + circuit breakers" get enforced mechanically.
@@ -235,6 +258,10 @@ churn and one-star reviews.
 - Reliability benchmarks (TheAgentCompany ~24–30%, CRMArena-Pro 58%→35%) are from specific
   task suites; a narrow, well-scoped workflow can score considerably higher — which is exactly
   why narrow scope + verification is the strategy.
+- The COO Engine figures in §5 come from its **own** Benchmark Report, measured against a
+  greedy-baseline router in simulation — not an independent third party. Treat them as
+  indicative of the routing approach's ceiling; re-measure on the real workload (live model
+  latencies/prices, real task mix) before quoting them in GTM copy.
 - Competitor details move fast (Manus's Meta acquisition, pricing tiers, ZeroHuman/NanoCorp
   stage). Verify pricing and feature claims directly before publishing comparisons.
 
