@@ -60,14 +60,67 @@ Each feature maps to a specific competitor weakness. Ordered by how essential it
 - [ ] **Transparent flat pricing, no revenue share** — Predictable monthly price; if usage-based,
       hard caps + real-time spend alerts + pre-action cost estimates.
 - [ ] **Budget governor + circuit breakers** — Hard daily/total budget caps, anomaly detection,
-      auto-pause on overspend or repeated failures.
+      auto-pause on overspend or repeated failures. Implemented via the COO Engine's predictive
+      spawn (pre-action cost forecast) and cost-aware retirement (§5).
 - [ ] **Vertical depth + data moat** — Niche-specific playbooks, templates, and governed
       anonymized cross-account learning about what actually converts in the one vertical.
 
-## 5. Technical architecture (cloud-only, mobile-first, solo-operable)
+## 5. The COO Engine — Constraint-Optimized Orchestration (dispatch + governance core)
+
+The orchestration core is the **COO Engine** (*Constraint-Optimized Orchestration*) — a
+constraint-aware orchestrator for multi-agent LLM systems that routes every task to the
+right agent/model under **hard budget, latency, and capacity limits**, scaling the agent
+pool up and down to keep spend inside those limits. The acronym is a useful double
+meaning: a Constraint-Optimized Orchestrator is, in effect, the product's autonomous
+*Chief Operating Officer* — it *operates* a validated plan within hard constraints rather
+than acting on a guess.
+
+> Source: `Full-Stack-Assets/COO-Engine-Implementation-` (MIT). Ships with an in-browser
+> simulation dashboard and a `mini` CLI for analytics. See its Algorithm Specification,
+> Benchmark Report, and Trade-offs Analysis for the constraint dimensions and decision rules.
+
+**The verified operating loop**, and which steps the COO Engine owns (marked):
+1. **Plan** — turn the validated objective + current state into a ranked work queue.
+2. **Dispatch** *(COO Engine)* — score every (agent, task) pair and route to the best worker / model tier.
+3. **Verify** — the verification layer independently proves the action worked (200 OK + renders, email landed, campaign live within cap, Stripe webhook fired).
+4. **Gate** — HITL approvals queue for high-blast-radius actions; auto-approve safe/reversible ones.
+5. **Govern** *(COO Engine)* — predictive spawn / cost-aware retirement enforce hard budget caps; circuit-break on overspend or repeated failures; auto-refund credits on failed actions.
+6. **Report** — verified morning report + update the public reliability dashboard.
+7. **Learn** — write only *validated* outcomes back to per-account memory and vertical playbooks.
+
+The COO Engine owns **dispatch** and **govern**; the verification layer and HITL gates
+stay separate, independent checks (defense in depth — the router never grades its own work).
+
+**COO Engine capabilities → the plan feature each one delivers:**
+- **Multi-dimensional fitness scoring** — every (agent, task) pair scored across five
+  weighted constraints: *type match, cost, latency, load, budget headroom*. The concrete
+  implementation of "route by task / model tier" (§6).
+- **Intelligent fallback routing** — evaluates cross-type routing and uses it only when
+  genuinely the best option (not limited to same-type matching), so work still gets placed
+  under load instead of stalling.
+- **Predictive spawn** — forecasts cost *before* scaling up; spawns an agent only when
+  demand and the budget both justify it. Powers the budget governor's pre-action cost
+  estimates (§4).
+- **Cost-aware retirement** — retires idle agents under budget pressure or after an idle
+  timeout, keeping spend inside hard limits. Half of the circuit-breaker behavior (§4).
+- **Full audit trail** — every routing, spawn, and retirement decision logged with a
+  timestamp, score, and human-readable justification. Feeds the audit-trail guardrail (§6)
+  and the public reliability dashboard (§4).
+- **Mini CLI & analytics** — inspect agent stats, queue depth, budget, health, and
+  decisions from the command line (`mini`).
+
+**Why it matters to the thesis:** the COO Engine is *how* "transparent flat pricing with
+hard caps" and "budget governor + circuit breakers" get enforced mechanically.
+Constraint-optimized routing lets the product promise predictable spend and actually keep
+that promise — the opposite of the unpredictable credit burn that drives the category's
+churn and one-star reviews.
+
+## 6. Technical architecture (cloud-only, mobile-first, solo-operable)
 
 - **Orchestration:** LangGraph (graph/state-machine; first-class HITL via `interrupt()` +
   `Command`; persistent checkpointer for pause/resume over hours). 2026 production standard.
+  Task/model routing and agent-pool sizing within hard budget/latency/capacity limits are
+  delegated to the **COO Engine** (§5).
 - **Models (LLM-agnostic, route by task):** Claude (Opus-class) for planning/reasoning/judgment;
   cheaper/faster models (Haiku / GPT-mini class) for validation, classification, and the
   checking steps to control cost. Stay provider-agnostic to avoid vendor lock-in and price shocks.
@@ -85,7 +138,7 @@ Each feature maps to a specific competitor weakness. Ordered by how essential it
 - **Front end:** mobile-first PWA / responsive web; founder reviews and approves from a phone.
   No local install — fully cloud-hosted.
 
-## 6. Go-to-market (lean, bootstrapped, solo)
+## 7. Go-to-market (lean, bootstrapped, solo)
 
 - **Beachhead customer:** technical-ish indie founders / micro-SaaS builders and small B2B SaaS
   who have a (semi-)validated product but hate or neglect distribution.
@@ -103,7 +156,7 @@ Each feature maps to a specific competitor weakness. Ordered by how essential it
   first, prove every action actually worked, and you approve anything risky from your phone.
   You own your code. No 20% tax."*
 
-## 7. Phased roadmap to first revenue
+## 8. Phased roadmap to first revenue
 
 ### Phase 0 — Validate & narrow (Weeks 1–2)
 - [ ] 20 customer interviews in the chosen vertical
@@ -138,7 +191,7 @@ Each feature maps to a specific competitor weakness. Ordered by how essential it
 - [ ] Templatize the verified-loop architecture for a second vertical
 - [ ] Introduce optional outcome-based pricing once task-success rates are proven publicly
 
-## 8. Decision gates (benchmarks that should change the plan)
+## 9. Decision gates (benchmarks that should change the plan)
 
 | Signal | Action |
 |--------|--------|
@@ -148,7 +201,7 @@ Each feature maps to a specific competitor weakness. Ordered by how essential it
 | Churn **>5%/mo** at 50 customers | Fix retention before any new features or verticals |
 | Public task-success rate exceeds **80%** on core workflow | Only then consider broadening scope |
 
-## 9. Core recommendations
+## 10. Core recommendations
 
 1. **Don't** clone "run any company fully autonomously" — win on trust + verification + depth.
 2. **Ship the verification layer in the MVP** — it's the whole point. Publish verified-deploy/send rates openly.
@@ -158,7 +211,7 @@ Each feature maps to a specific competitor weakness. Ordered by how essential it
 6. **Charge from day one; instrument churn early.** Retention is the real PMF signal.
 7. **Use the reliability dashboard as the marketing moat** — be the honest, measurable one.
 
-## 10. Caveats / things to re-verify before committing GTM copy
+## 11. Caveats / things to re-verify before committing GTM copy
 
 - Polsia's metrics are self-reported (ARR ~$10M, 7,600+ companies, "one-sixth generating
   revenue"); treat as directional, not audited. Trustpilot sample is small (~20 reviews).
