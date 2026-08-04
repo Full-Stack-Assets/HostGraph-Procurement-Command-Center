@@ -217,7 +217,8 @@ pnpm build
 
 ## Contributing
 
-This is a private project. For internal contributions, follow these guidelines:
+This is a public portfolio showcase and can accept external issues, design notes,
+and contribution PRs for non-production experimentation.
 
 - Create a feature branch from `main`
 - Follow the existing code style and component patterns
@@ -227,7 +228,9 @@ This is a private project. For internal contributions, follow these guidelines:
 
 ## License
 
-This project is proprietary and confidential. Unauthorized copying or distribution is prohibited.
+This project is intentionally open for review and demonstration. Commercial
+extensions and internal data integrations are controlled separately from this
+public portfolio repository.
 
 ## Support & Feedback
 
