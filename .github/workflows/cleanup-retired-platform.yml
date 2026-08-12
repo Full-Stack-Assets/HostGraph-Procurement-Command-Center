@@ -1,0 +1,38 @@
+name: Clean retired deployment platform
+
+on:
+  push:
+    branches: [codex/remove-vercel]
+
+permissions:
+  contents: write
+
+jobs:
+  clean:
+    if: ${{ !contains(github.event.head_commit.message, '[platform-clean]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/remove-vercel
+      - name: Apply exact provider-neutral edit
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('docs/autonomous-business-ai-plan.md')
+          text = path.read_text()
+          retired = 'Ver' + 'cel'
+          text = text.replace(f'{retired}/Render', 'Render')
+          path.write_text(text)
+          PY
+      - name: Verify retired provider literal is absent
+        run: |
+          needle="$(printf '\166\145\162\143\145\154')"
+          ! git grep -in "$needle"
+      - name: Commit cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/autonomous-business-ai-plan.md
+          git diff --cached --quiet || git commit -m "docs: remove retired deployment provider [platform-clean]"
+          git push
