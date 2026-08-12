@@ -205,7 +205,7 @@ last** ("financial overruns are preferable to service failures"). That priority 
   for per-account long-term memory and vertical playbooks. Governed learning loops
   (validated insights only) so mistakes aren't reinforced.
 - **Execution tools:** Cloud browser (Anchor/Browserbase-style), email/deliverability API,
-  Stripe, ad APIs (Meta/Google) with budget caps, GitHub + cloud deploy (Vercel/Render).
+  Stripe, ad APIs (Meta/Google) with budget caps, GitHub + cloud deploy (Render).
   **Every tool call is wrapped with a verification check and least-privilege scopes.**
 - **Reliability/guardrails:** per-step verification; retry-with-bounded-attempts then escalate
   to human; prompt-injection/PII filters; action logs/audit trail; TTL on stale approval threads;
