@@ -9,7 +9,16 @@ test('approved HostGraph command-center interface is present', () => {
   for (const label of ['Overview', 'Margins', 'Orders', 'Vendors', 'Products', 'Credits', 'Alerts', 'Reports', 'Settings', 'Help']) {
     assert.match(shell, new RegExp(label));
   }
-  for (const label of ['Potential Savings', 'Active Alerts', 'Margin Over Time', 'Spend by Category', 'Top Products by Margin Impact']) {
+  for (const label of ['Gross Margin', 'Potential Savings', 'Active Alerts', 'Margin Over Time', 'Spend by Category', 'Top Products by Margin Impact']) {
     assert.match(dashboard, new RegExp(label));
   }
+});
+
+test('review UI distinguishes sourced fixture values from unavailable metrics', () => {
+  assert.match(dashboard, /Not modeled/);
+  assert.match(dashboard, /Historical margin series is not supplied/);
+  assert.match(dashboard, /Synthetic review fixtures/);
+  assert.match(dashboard, /marginGapData/);
+  assert.doesNotMatch(dashboard, /const marginTrend\s*=/);
+  assert.doesNotMatch(dashboard, /value="28\.4%"/);
 });
