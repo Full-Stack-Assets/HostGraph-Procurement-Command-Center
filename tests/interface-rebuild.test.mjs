@@ -22,3 +22,9 @@ test('review UI distinguishes sourced fixture values from unavailable metrics', 
   assert.doesNotMatch(dashboard, /const marginTrend\s*=/);
   assert.doesNotMatch(dashboard, /value="28\.4%"/);
 });
+
+test('review shell does not present a fabricated named operator', () => {
+  assert.match(shell, /Review Workspace/);
+  assert.match(shell, /Synthetic data mode/);
+  assert.doesNotMatch(shell, /Alex Morgan/);
+});
