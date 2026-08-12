@@ -1,30 +1,101 @@
 /**
- * Design reminder: industrial neo-noir command rail with asymmetrical layout, luminous dividers, and disciplined typography.
+ * Review interface: compact procurement command rail matching the approved HostGraph visual direction.
  */
 import { cn } from '@/lib/utils';
 import { prefetchCommonRoutes, prefetchRoute, type PrefetchableRoute } from '@/lib/routePrefetch';
 import {
-  AlertTriangle,
-  ArrowRightLeft,
+  BadgeDollarSign,
   BellRing,
-  ChartColumnIncreasing,
-  ChevronRight,
-  CircleDollarSign,
+  Boxes,
+  ChartNoAxesCombined,
+  CircleHelp,
+  FileChartColumnIncreasing,
+  LayoutDashboard,
+  Network,
   PackageSearch,
+  ReceiptText,
+  Settings,
   Store,
-  Wheat,
+  type LucideIcon,
 } from 'lucide-react';
 import { useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 
-const navItems: Array<{ label: string; to: PrefetchableRoute; icon: typeof ChartColumnIncreasing }> = [
-  { label: 'Dashboard Summary', to: '/', icon: ChartColumnIncreasing },
-  { label: 'Margin Gap Report', to: '/margin-gap', icon: CircleDollarSign },
-  { label: 'Reorder Suggestions', to: '/reorder', icon: PackageSearch },
-  { label: 'Vendor Scorecard', to: '/vendors', icon: Store },
-  { label: 'Shrinkage & Yield', to: '/shrinkage', icon: Wheat },
+interface NavigationItem {
+  label: string;
+  icon: LucideIcon;
+  to?: PrefetchableRoute;
+  hint?: string;
+}
+
+const navItems: NavigationItem[] = [
+  { label: 'Overview', to: '/', icon: LayoutDashboard },
+  { label: 'Margins', to: '/margin-gap', icon: ChartNoAxesCombined },
+  { label: 'Orders', to: '/reorder', icon: ReceiptText },
+  { label: 'Vendors', to: '/vendors', icon: Store },
+  { label: 'Products', to: '/shrinkage', icon: Boxes },
+  { label: 'Credits', icon: BadgeDollarSign, hint: 'Workspace preview' },
   { label: 'Alerts', to: '/alerts', icon: BellRing },
+  { label: 'Reports', icon: FileChartColumnIncreasing, hint: 'Workspace preview' },
 ];
+
+const utilityItems: NavigationItem[] = [
+  { label: 'Settings', icon: Settings, hint: 'Workspace preview' },
+  { label: 'Help', icon: CircleHelp, hint: 'Workspace preview' },
+];
+
+function NavigationRow({ item }: { item: NavigationItem }) {
+  const Icon = item.icon;
+  if (!item.to) {
+    return (
+      <div
+        aria-disabled="true"
+        className="group flex items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-sm text-slate-500"
+        title={item.hint}
+      >
+        <span className="flex size-8 items-center justify-center rounded-lg border border-white/5 bg-white/[0.025] text-slate-600">
+          <Icon className="size-4" />
+        </span>
+        <span>{item.label}</span>
+        <span className="ml-auto size-1.5 rounded-full bg-slate-700" />
+      </div>
+    );
+  }
+
+  return (
+    <NavLink
+      to={item.to}
+      end={item.to === '/'}
+      onPointerEnter={() => prefetchRoute(item.to!)}
+      onFocus={() => prefetchRoute(item.to!)}
+      className={({ isActive }) =>
+        cn(
+          'group flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition-all duration-200',
+          isActive
+            ? 'border-violet-400/25 bg-gradient-to-r from-violet-500/18 to-cyan-400/8 text-white shadow-[0_0_34px_rgba(124,58,237,0.10)]'
+            : 'border-transparent text-slate-400 hover:border-white/8 hover:bg-white/[0.035] hover:text-slate-100',
+        )
+      }
+    >
+      {({ isActive }) => (
+        <>
+          <span
+            className={cn(
+              'flex size-8 items-center justify-center rounded-lg border transition-colors',
+              isActive
+                ? 'border-violet-300/25 bg-violet-400/12 text-violet-100'
+                : 'border-white/5 bg-white/[0.025] text-slate-500 group-hover:text-slate-200',
+            )}
+          >
+            <Icon className="size-4" />
+          </span>
+          <span>{item.label}</span>
+          {isActive ? <span className="ml-auto size-1.5 rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(103,232,249,.8)]" /> : null}
+        </>
+      )}
+    </NavLink>
+  );
+}
 
 export function HostGraphShell() {
   useEffect(() => {
@@ -32,78 +103,43 @@ export function HostGraphShell() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.10),transparent_24%),radial-gradient(circle_at_bottom_right,rgba(239,68,68,0.08),transparent_18%)]" />
-      <div className="pointer-events-none fixed inset-0 opacity-[0.04] mix-blend-screen [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:32px_32px]" />
-      <div className="relative grid min-h-screen lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="border-r border-white/8 bg-sidebar/80 px-5 py-6 backdrop-blur-xl">
-          <div className="flex h-full flex-col gap-6">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-200">
-                <ArrowRightLeft className="size-3" />
-                Procurement command center
-              </div>
+    <div className="min-h-screen bg-[#060817] text-slate-100">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_18%_-10%,rgba(124,58,237,0.22),transparent_30%),radial-gradient(circle_at_88%_10%,rgba(34,211,238,0.12),transparent_28%),linear-gradient(180deg,#080b1d,#03050f_70%)]" />
+      <div className="pointer-events-none fixed inset-0 opacity-[0.035] [background-image:linear-gradient(rgba(255,255,255,0.2)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.2)_1px,transparent_1px)] [background-size:42px_42px]" />
+
+      <div className="relative grid min-h-screen lg:grid-cols-[232px_minmax(0,1fr)]">
+        <aside className="border-r border-white/7 bg-[#070919]/90 px-4 py-5 backdrop-blur-2xl">
+          <div className="flex h-full min-h-[calc(100vh-2.5rem)] flex-col">
+            <div className="flex items-center gap-3 border-b border-white/7 px-2 pb-5">
+              <span className="relative flex size-10 items-center justify-center rounded-2xl border border-violet-400/25 bg-gradient-to-br from-violet-500/25 to-cyan-400/10 text-violet-100 shadow-[0_0_32px_rgba(124,58,237,0.16)]">
+                <Network className="size-5" />
+                <span className="absolute -right-1 -top-1 size-2.5 rounded-full border-2 border-[#070919] bg-cyan-300" />
+              </span>
               <div>
-                <p className="font-mono text-xs uppercase tracking-[0.32em] text-zinc-500">HostGraph</p>
-                <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">Boston portfolio control tower</h1>
-                <p className="mt-3 max-w-xs text-sm leading-6 text-zinc-400">
-                  A live procurement cockpit focused on margin leakage, vendor drift, and store-level yield discipline.
-                </p>
+                <p className="text-sm font-semibold tracking-[0.16em] text-white">HOSTGRAPH</p>
+                <p className="mt-1 text-[9px] uppercase tracking-[0.22em] text-slate-500">Procurement command center</p>
               </div>
             </div>
 
-            <nav className="space-y-2">
-              {navItems.map(({ label, to, icon: Icon }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  end={to === '/'}
-                  onPointerEnter={() => prefetchRoute(to)}
-                  onFocus={() => prefetchRoute(to)}
-                  className={({ isActive }) =>
-                    cn(
-                      'group flex items-center justify-between rounded-2xl border px-4 py-3 transition-all duration-200',
-                      isActive
-                        ? 'border-emerald-400/30 bg-emerald-400/12 text-white shadow-[0_0_0_1px_rgba(16,185,129,0.1)]'
-                        : 'border-white/5 bg-white/[0.02] text-zinc-400 hover:border-white/10 hover:bg-white/[0.04] hover:text-zinc-100',
-                    )
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      <span className="flex items-center gap-3 text-sm font-medium">
-                        <span
-                          className={cn(
-                            'flex size-9 items-center justify-center rounded-xl border transition-colors',
-                            isActive
-                              ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200'
-                              : 'border-white/8 bg-black/20 text-zinc-500 group-hover:text-zinc-200',
-                          )}
-                        >
-                          <Icon className="size-4" />
-                        </span>
-                        {label}
-                      </span>
-                      <ChevronRight className={cn('size-4 transition-transform', isActive ? 'text-emerald-200' : 'text-zinc-600 group-hover:translate-x-0.5')} />
-                    </>
-                  )}
-                </NavLink>
-              ))}
+            <nav className="mt-5 space-y-1" aria-label="Primary navigation">
+              {navItems.map((item) => <NavigationRow key={item.label} item={item} />)}
             </nav>
 
-            <div className="mt-auto rounded-[28px] border border-white/8 bg-black/20 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-              <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-zinc-500">Demo narrative</p>
-              <h2 className="mt-3 text-lg font-semibold text-white">The gotcha trilogy</h2>
-              <ul className="mt-4 space-y-3 text-sm text-zinc-400">
-                <li>Sysco overbilling on mozzarella contracts</li>
-                <li>Chicken yield variance after staffing change</li>
-                <li>Avocado shrink without matching credits</li>
-              </ul>
+            <div className="mt-auto space-y-1 border-t border-white/7 pt-4">
+              {utilityItems.map((item) => <NavigationRow key={item.label} item={item} />)}
+              <div className="mt-4 flex items-center gap-3 rounded-2xl border border-white/7 bg-white/[0.025] p-3">
+                <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-xs font-semibold text-white">RW</span>
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-medium text-slate-200">Review Workspace</p>
+                  <p className="mt-1 truncate text-[10px] text-slate-500">Synthetic data mode</p>
+                </div>
+                <PackageSearch className="ml-auto size-4 text-slate-600" />
+              </div>
             </div>
           </div>
         </aside>
 
-        <main className="relative min-w-0 px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+        <main className="relative min-w-0 px-4 py-5 sm:px-6 lg:px-8 xl:px-10">
           <Outlet />
         </main>
       </div>
