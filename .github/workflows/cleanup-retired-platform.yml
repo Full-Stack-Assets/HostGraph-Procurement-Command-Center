@@ -2,7 +2,7 @@ name: Clean retired deployment platform
 
 on:
   push:
-    branches: [codex/remove-vercel]
+    branches: ['codex/remove-*']
 
 permissions:
   contents: write
@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: codex/remove-vercel
+          ref: ${{ github.ref_name }}
       - name: Apply exact provider-neutral edit
         run: |
           python - <<'PY'
