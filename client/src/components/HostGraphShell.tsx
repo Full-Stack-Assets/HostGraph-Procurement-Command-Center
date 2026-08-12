@@ -128,10 +128,10 @@ export function HostGraphShell() {
             <div className="mt-auto space-y-1 border-t border-white/7 pt-4">
               {utilityItems.map((item) => <NavigationRow key={item.label} item={item} />)}
               <div className="mt-4 flex items-center gap-3 rounded-2xl border border-white/7 bg-white/[0.025] p-3">
-                <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-xs font-semibold text-white">AM</span>
+                <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-xs font-semibold text-white">RW</span>
                 <div className="min-w-0">
-                  <p className="truncate text-xs font-medium text-slate-200">Alex Morgan</p>
-                  <p className="mt-1 truncate text-[10px] text-slate-500">Procurement Lead</p>
+                  <p className="truncate text-xs font-medium text-slate-200">Review Workspace</p>
+                  <p className="mt-1 truncate text-[10px] text-slate-500">Synthetic data mode</p>
                 </div>
                 <PackageSearch className="ml-auto size-4 text-slate-600" />
               </div>
