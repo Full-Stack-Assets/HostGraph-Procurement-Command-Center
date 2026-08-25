@@ -5,12 +5,12 @@ import { LineChart } from '@tremor/react';
 import { useCallback } from 'react';
 import { api } from '@/services/api';
 import { vendorData } from '@/data/mockData';
-import { useFetch } from '@/hooks/useFetch';
+import { useHostGraphData } from '@/hooks/useHostGraphData';
 import { HeroPanel, LoadingPanel, PageStateBanner, SectionHeading, SeverityBadge, Surface } from '@/components/dashboard-primitives';
 
 export default function VendorsPage() {
   const fetchVendors = useCallback(() => api.getVendorsScorecard(), []);
-  const { data, loading, error, usingFallback } = useFetch(fetchVendors, { fallbackData: vendorData });
+  const { data, loading, error, usingFallback } = useHostGraphData(fetchVendors, { fallbackData: vendorData });
 
   if (loading) return <LoadingPanel label="Loading vendor network intelligence…" />;
 
