@@ -20,6 +20,8 @@ import {
   type InvoiceUploadResponse,
 } from '@shared/contracts/analytics';
 
+export type { InvoiceJobStatusResponse, InvoiceUploadResponse } from '@shared/contracts/analytics';
+
 export interface MarginGapParams {
   location?: string;
   dateFrom?: string;
