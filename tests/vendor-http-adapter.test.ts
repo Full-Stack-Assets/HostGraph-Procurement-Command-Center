@@ -45,8 +45,10 @@ describe('AuthorizedHttpVendorAdapter', () => {
     const result = await adapter.verifyLiveRead(context);
     expect(result.result).toBe('PASS');
     expect(result.sourceRecordIds).toEqual(['price-1']);
-    const init = fetchMock.mock.calls[0][1];
-    expect(init.headers.Authorization).toBe('Bearer do-not-leak');
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    const headers = new Headers(init.headers);
+    expect(headers.get('Authorization')).toBe('Bearer do-not-leak');
+    expect(headers.get('X-HostGraph-Account-Ref')).toBe('acct-safe');
   });
 
   it('fails on account or vendor identity mismatch', async () => {
