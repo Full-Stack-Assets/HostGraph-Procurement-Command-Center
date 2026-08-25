@@ -4,7 +4,7 @@
 
 **Goal:** Make HostGraph fail closed on live-data errors, validate every production API payload at runtime, and carry explicit source/provenance metadata into application state.
 
-**Architecture:** Move API response contracts into shared Zod schemas, introduce explicit `DEMO | LIVE | DEGRADED` truth modes, and replace the current generic `useFetch` fallback behavior with a truth-aware read state. Demo fixtures stay available only in `DEMO`; `LIVE` and `DEGRADED` never substitute repository fixtures.
+**Architecture:** Move API response contracts into shared Zod schemas, introduce explicit `DEMO | LIVE | DEGRADED` truth modes, and replace the current generic `useFetch` fallback behavior with a truth-aware read state. Repository fixtures are available only in `DEMO`; `LIVE` and `DEGRADED` never substitute synthetic data.
 
 **Tech Stack:** React 19, TypeScript 5.6, Vite 7, Zod 4, Vitest 2, React Testing Library, jsdom.
 
@@ -12,53 +12,51 @@
 
 ## Global Constraints
 - Preserve the current six operational routes and the August 2026 source-honesty interface contract.
-- Do not change vendor credentials, production deployment, billing, POS/accounting writes, or external vendor actions.
 - `LIVE` must never render synthetic fixture data after API failure.
-- Every accepted production payload must pass a runtime schema before entering state.
-- No `response.json() as T` production acceptance path remains after this plan.
-- Keep synthetic data in the repository for `DEMO` mode only and label it programmatically as synthetic.
+- Every accepted production API payload must pass a runtime schema before entering state.
+- No `response.json() as T` or equivalent unchecked production acceptance path remains.
+- Synthetic fixtures remain in source for `DEMO` mode only and are programmatically marked synthetic.
+- In development only, an omitted `VITE_HOSTGRAPH_MODE` may default to `DEMO`.
+- In a production build/runtime, missing or invalid `VITE_HOSTGRAPH_MODE` is a configuration failure; production must never silently default to DEMO.
+- `DEGRADED` is derived from failed/stale LIVE state and is never manually configured.
+- Analytics reads (dashboard, margin, reorder, vendor, shrinkage, benchmark, alerts) become stale after 5 minutes; invoice queue/job status becomes stale after 60 seconds.
+- No vendor credentials, billing, production deployment, POS/accounting writes, or external vendor actions are introduced by this plan.
 
 ---
 
 ## File structure
-
-- Create `shared/contracts/core.ts` for truth-mode, source metadata, API envelope, and evidence-state contracts.
-- Create `shared/contracts/analytics.ts` for dashboard, margin, reorder, vendor, shrinkage, benchmark, and alert Zod schemas.
-- Create `client/src/lib/runtimeMode.ts` for runtime-mode resolution.
-- Create `client/src/lib/dataReadState.ts` for the pure data-state reducer.
-- Create `client/src/hooks/useHostGraphData.ts` for the React data-loading hook.
-- Replace `client/src/services/api.ts` request casting with schema-validated reads.
-- Modify all six route pages and `dashboard-primitives.tsx` to consume explicit truth state.
-- Create `tests/core-contracts.test.ts`, `tests/api-client.test.ts`, and `tests/data-read-state.test.ts`.
+- Create `shared/contracts/core.ts` for truth mode, evidence state, source metadata, and freshness contracts.
+- Create `shared/contracts/analytics.ts` for Zod runtime schemas for every existing API response.
+- Create `client/src/lib/runtimeMode.ts`, `client/src/lib/dataReadState.ts`, and `client/src/hooks/useHostGraphData.ts`.
+- Replace unchecked request casting in `client/src/services/api.ts`.
+- Migrate all six route pages and source-state primitives.
+- Add Vitest/Testing Library coverage under `tests/`.
 
 ### Task 1: Add repeatable TypeScript unit-test infrastructure
 
 **Files:**
 - Modify: `package.json`
 - Create: `vitest.config.ts`
+- Create: `tests/core-contracts.test.ts`
 
 **Interfaces:**
-- Produces: `pnpm test:unit` running `tests/**/*.test.ts` in Node and `tests/**/*.test.tsx` in jsdom.
+- Produces: `pnpm test:unit` for `tests/**/*.test.ts` and `tests/**/*.test.tsx`.
 
-- [ ] **Step 1: Add failing smoke test**
-
-Create `tests/core-contracts.test.ts`:
+- [ ] **Step 1: Write the red smoke test**
 
 ```ts
 import { describe, expect, it } from 'vitest';
 import { TruthModeSchema } from '@shared/contracts/core';
 
 describe('TruthModeSchema', () => {
-  it('accepts only DEMO, LIVE, and DEGRADED', () => {
+  it('accepts only the approved truth states', () => {
     expect(TruthModeSchema.parse('LIVE')).toBe('LIVE');
     expect(() => TruthModeSchema.parse('fallback')).toThrow();
   });
 });
 ```
 
-- [ ] **Step 2: Run the test and verify red state**
-
-Run:
+- [ ] **Step 2: Verify it fails before implementation**
 
 ```bash
 pnpm exec vitest run tests/core-contracts.test.ts
@@ -66,15 +64,13 @@ pnpm exec vitest run tests/core-contracts.test.ts
 
 Expected: FAIL because `@shared/contracts/core` does not exist.
 
-- [ ] **Step 3: Add scripts and test dependencies**
-
-Add dev dependencies:
+- [ ] **Step 3: Add the test dependencies and scripts**
 
 ```bash
 pnpm add -D @testing-library/react @testing-library/jest-dom jsdom
 ```
 
-Add scripts:
+Add:
 
 ```json
 {
@@ -83,76 +79,53 @@ Add scripts:
 }
 ```
 
-Create `vitest.config.ts` with repository aliases matching Vite:
+Create `vitest.config.ts` with `@` -> `client/src` and `@shared` -> `shared` aliases.
 
-```ts
-import path from 'node:path';
-import { defineConfig } from 'vitest/config';
-
-export default defineConfig({
-  resolve: {
-    alias: {
-      '@': path.resolve(import.meta.dirname, 'client/src'),
-      '@shared': path.resolve(import.meta.dirname, 'shared'),
-    },
-  },
-  test: { include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'] },
-});
-```
-
-- [ ] **Step 4: Commit test scaffold**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add package.json pnpm-lock.yaml vitest.config.ts tests/core-contracts.test.ts
 git commit -m "test: add HostGraph unit test harness"
 ```
 
-### Task 2: Define shared truth, provenance, and evidence contracts
+### Task 2: Define shared truth, provenance, evidence, and freshness contracts
 
 **Files:**
 - Create: `shared/contracts/core.ts`
-- Expand test: `tests/core-contracts.test.ts`
+- Modify: `tests/core-contracts.test.ts`
 
 **Interfaces:**
-- Produces: `TruthMode`, `EvidenceState`, `SourceMetadata`, `ApiEnvelope<T>`, `DataFreshness`.
+- Produces: `TruthMode`, `EvidenceState`, `SourceMetadata`, `DataFreshness`.
 
-- [ ] **Step 1: Extend the failing test**
+- [ ] **Step 1: Extend the red tests**
 
 ```ts
 import { EvidenceStateSchema, SourceMetadataSchema } from '@shared/contracts/core';
 
-it('enforces the evidence lifecycle vocabulary', () => {
+it('enforces the value lifecycle vocabulary', () => {
   for (const state of ['OBSERVED', 'DETECTED', 'CLIENT_CONFIRMED', 'REALIZED']) {
     expect(EvidenceStateSchema.parse(state)).toBe(state);
   }
   expect(() => EvidenceStateSchema.parse('SAVED')).toThrow();
 });
 
-it('requires source timestamps and provenance identifiers', () => {
-  expect(() => SourceMetadataSchema.parse({ source: 'api' })).toThrow();
+it('requires provenance identifiers and timestamps', () => {
+  expect(() => SourceMetadataSchema.parse({ sourceSystem: 'api' })).toThrow();
 });
 ```
 
-- [ ] **Step 2: Implement exact schemas**
+- [ ] **Step 2: Implement exact core schemas**
 
 ```ts
 import { z } from 'zod';
 
 export const TruthModeSchema = z.enum(['DEMO', 'LIVE', 'DEGRADED']);
-export type TruthMode = z.infer<typeof TruthModeSchema>;
-
-export const EvidenceStateSchema = z.enum([
-  'OBSERVED',
-  'DETECTED',
-  'CLIENT_CONFIRMED',
-  'REALIZED',
-]);
-export type EvidenceState = z.infer<typeof EvidenceStateSchema>;
+export const EvidenceStateSchema = z.enum(['OBSERVED', 'DETECTED', 'CLIENT_CONFIRMED', 'REALIZED']);
 
 export const SourceMetadataSchema = z.object({
   sourceSystem: z.string().min(1),
-  sourceRecordIds: z.array(z.string().min(1)).min(1),
-  observedAt: z.string().datetime(),
+  sourceRecordIds: z.array(z.string().min(1)),
+  observedAt: z.string().datetime().nullable(),
   fetchedAt: z.string().datetime(),
   schemaVersion: z.string().min(1),
   correlationId: z.string().min(1),
@@ -165,22 +138,18 @@ export const DataFreshnessSchema = z.object({
 });
 ```
 
-- [ ] **Step 3: Run contracts test**
+`sourceRecordIds` may be empty for aggregate endpoints that do not expose row IDs; row-level findings later require at least one source ID.
+
+- [ ] **Step 3: Run and commit**
 
 ```bash
 pnpm test:unit -- tests/core-contracts.test.ts
-```
-
-Expected: PASS.
-
-- [ ] **Step 4: Commit**
-
-```bash
+pnpm check
 git add shared/contracts/core.ts tests/core-contracts.test.ts
 git commit -m "feat: define HostGraph truth and provenance contracts"
 ```
 
-### Task 3: Move API payload shapes into Zod runtime schemas
+### Task 3: Move all API payload shapes into Zod runtime schemas
 
 **Files:**
 - Create: `shared/contracts/analytics.ts`
@@ -188,43 +157,28 @@ git commit -m "feat: define HostGraph truth and provenance contracts"
 - Create: `tests/analytics-contracts.test.ts`
 
 **Interfaces:**
-- Consumes: `SourceMetadataSchema`.
-- Produces: runtime schemas and inferred TypeScript types for every existing read endpoint.
+- Produces runtime schemas and `z.infer` types for dashboard, margin gap, drilldown, inventory, reorder, shrinkage, benchmark, vendor, price trend, alerts, invoice queue, upload response, and job status.
 
-- [ ] **Step 1: Write red schema tests using current fixtures**
+- [ ] **Step 1: Write fixture/schema tests**
 
 ```ts
-import { DashboardSummarySchema, MarginGapResponseSchema } from '@shared/contracts/analytics';
-import { dashboardSummary, marginGapData } from '@/data/mockData';
-
-it('accepts repository demo fixtures', () => {
-  expect(DashboardSummarySchema.parse(dashboardSummary).kpis.length).toBeGreaterThan(0);
-  expect(MarginGapResponseSchema.parse(marginGapData).rows.length).toBeGreaterThan(0);
-});
-
-it('rejects malformed money fields', () => {
-  expect(() => MarginGapResponseSchema.parse({ ...marginGapData, rows: [{ ...marginGapData.rows[0], actualCost: '3.92' }] })).toThrow();
-});
+expect(DashboardSummarySchema.parse(dashboardSummary).kpis.length).toBeGreaterThan(0);
+expect(MarginGapResponseSchema.parse(marginGapData).rows.length).toBeGreaterThan(0);
+expect(() => MarginGapResponseSchema.parse({
+  ...marginGapData,
+  rows: [{ ...marginGapData.rows[0], actualCost: '3.92' }],
+})).toThrow();
 ```
 
-- [ ] **Step 2: Define schemas for all existing endpoint payloads**
+- [ ] **Step 2: Implement endpoint schemas and infer types from them**
 
-Implement Zod schemas corresponding exactly to current `mockData.ts` interfaces: dashboard summary, margin gap, drilldown, inventory levels, reorder response, shrinkage response, benchmarks, vendor response, price trends, alerts, ingestion queue, upload response, and job status.
+Update `mockData.ts` so fixtures are compile-time checked against the shared inferred types instead of defining a second interface universe.
 
-Infer exported TypeScript types from schemas with `z.infer` and update `mockData.ts` imports so fixture data is compile-time checked against those types.
-
-- [ ] **Step 3: Run schema and type checks**
+- [ ] **Step 3: Run and commit**
 
 ```bash
 pnpm test:unit -- tests/analytics-contracts.test.ts
 pnpm check
-```
-
-Expected: PASS.
-
-- [ ] **Step 4: Commit**
-
-```bash
 git add shared/contracts/analytics.ts client/src/data/mockData.ts tests/analytics-contracts.test.ts
 git commit -m "feat: validate HostGraph analytics contracts at runtime"
 ```
@@ -236,24 +190,20 @@ git commit -m "feat: validate HostGraph analytics contracts at runtime"
 - Create: `tests/api-client.test.ts`
 
 **Interfaces:**
-- Produces: `requestValidated<T>(path, schema, options)` returning validated payload plus request metadata.
+- Produces: `requestValidated(path, schema, options)` and structured `HostGraphApiError`.
 
-- [ ] **Step 1: Write failing request tests**
-
-Cover: valid response, malformed JSON shape, timeout, 500 response, safe GET retry once, upload no retry, URL encoding of `ingredientId`.
-
-Example:
+- [ ] **Step 1: Write failing tests for valid response, malformed 200 response, timeout, 500, retry behavior, upload no-retry, and encoded `ingredientId`**
 
 ```ts
-it('rejects schema-invalid successful responses', async () => {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ kpis: 'wrong' }), { status: 200 })));
+it('rejects a schema-invalid 200 response', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+    new Response(JSON.stringify({ kpis: 'wrong' }), { status: 200 }),
+  ));
   await expect(api.getDashboardSummary()).rejects.toMatchObject({ kind: 'SCHEMA' });
 });
 ```
 
 - [ ] **Step 2: Implement structured errors**
-
-Define:
 
 ```ts
 type ApiErrorKind = 'HTTP' | 'NETWORK' | 'TIMEOUT' | 'SCHEMA' | 'ABORTED';
@@ -268,87 +218,82 @@ export class HostGraphApiError extends Error {
 }
 ```
 
-Use `crypto.randomUUID()` for `X-HostGraph-Correlation-Id`, `AbortController` with a 10-second default timeout, and Zod `safeParse` before returning data.
+Use `crypto.randomUUID()` for `X-HostGraph-Correlation-Id`, `AbortController` with a 10-second default timeout, and Zod `safeParse` before returning data. Safe GET reads may retry once only for network/timeout/5xx failures. Uploads never retry automatically. Encode dynamic path identifiers with `encodeURIComponent`.
 
-Only safe GET reads may retry once, and only for network/timeout/5xx failures. `uploadInvoice()` never retries automatically.
-
-Dynamic identifiers must be encoded with `encodeURIComponent`.
-
-- [ ] **Step 3: Remove all `response.json() as T` paths**
-
-Search:
+- [ ] **Step 3: Prove unchecked casts are gone**
 
 ```bash
 rg "response\.json\(\).*as|as Promise<" client/src/services
 ```
 
-Expected after implementation: no production API cast path.
+Expected: zero production acceptance matches.
 
-- [ ] **Step 4: Run tests**
+- [ ] **Step 4: Run and commit**
 
 ```bash
 pnpm test:unit -- tests/api-client.test.ts
 pnpm check
-```
-
-- [ ] **Step 5: Commit**
-
-```bash
 git add client/src/services/api.ts tests/api-client.test.ts
 git commit -m "feat: fail closed on invalid HostGraph API responses"
 ```
 
-### Task 5: Replace fallback semantics with an explicit data-state reducer
+### Task 5: Add runtime mode resolution, endpoint freshness policy, and truth-aware read state
 
 **Files:**
 - Create: `client/src/lib/runtimeMode.ts`
+- Create: `client/src/lib/freshnessPolicy.ts`
 - Create: `client/src/lib/dataReadState.ts`
 - Create: `client/src/hooks/useHostGraphData.ts`
+- Test: `tests/runtime-mode.test.ts`
 - Test: `tests/data-read-state.test.ts`
 - Test: `tests/use-hostgraph-data.test.tsx`
 
 **Interfaces:**
-- Produces: `HostGraphReadState<T>` with `mode`, `status`, `data`, `lastVerifiedData`, `error`, `fetchedAt`, `stale`.
+- Produces: configured mode `DEMO | LIVE`, runtime state `DEMO | LIVE | DEGRADED`, and endpoint freshness deadlines.
 
-- [ ] **Step 1: Write reducer tests first**
+- [ ] **Step 1: Test production configuration failure**
+
+A production-mode resolver with missing/invalid `VITE_HOSTGRAPH_MODE` must throw `HostGraph configuration error`; a development resolver may default to DEMO.
+
+- [ ] **Step 2: Implement fixed freshness policy**
+
+```ts
+export const FRESHNESS_MS = {
+  analytics: 5 * 60_000,
+  invoiceQueue: 60_000,
+  invoiceJob: 60_000,
+} as const;
+```
+
+- [ ] **Step 3: Test state transitions**
 
 Required cases:
-- DEMO initializes from fixture and marks it synthetic.
-- LIVE successful read becomes LIVE with validated data.
-- LIVE failed read with no verified snapshot becomes DEGRADED with `data: null`.
-- LIVE failed read with previous verified snapshot becomes DEGRADED and preserves only that snapshot.
-- No transition from LIVE failure may inject demo fixture data.
+- DEMO initializes fixture and never calls live fetcher;
+- LIVE successful read stores verified live data;
+- LIVE failure with no prior snapshot -> DEGRADED, `data: null`;
+- LIVE failure with prior verified snapshot -> DEGRADED with only that snapshot;
+- stale snapshot -> DEGRADED;
+- no failure/stale transition can inject demo fixtures.
 
-- [ ] **Step 2: Implement mode resolution**
-
-`client/src/lib/runtimeMode.ts` must read `VITE_HOSTGRAPH_MODE`, accept only `DEMO` or `LIVE`, and default to `DEMO` for local development. `DEGRADED` is runtime-derived, never manually configured.
-
-- [ ] **Step 3: Implement `useHostGraphData`**
-
-Signature:
+- [ ] **Step 4: Implement hook**
 
 ```ts
 export function useHostGraphData<T>(options: {
   mode: 'DEMO' | 'LIVE';
   demoData: T;
   fetcher: () => Promise<T>;
+  freshnessMs: number;
   dependencies?: readonly unknown[];
   enabled?: boolean;
 }): HostGraphReadState<T>
 ```
 
-In DEMO, do not call the live fetcher. In LIVE, do not use `demoData` after any failure.
-
-- [ ] **Step 4: Run hook tests in jsdom**
+- [ ] **Step 5: Run and commit**
 
 ```bash
-pnpm test:unit -- tests/data-read-state.test.ts tests/use-hostgraph-data.test.tsx
-```
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add client/src/lib/runtimeMode.ts client/src/lib/dataReadState.ts client/src/hooks/useHostGraphData.ts tests/data-read-state.test.ts tests/use-hostgraph-data.test.tsx
+pnpm test:unit -- tests/runtime-mode.test.ts tests/data-read-state.test.ts tests/use-hostgraph-data.test.tsx
+pnpm check
+git add client/src/lib client/src/hooks/useHostGraphData.ts tests
 git commit -m "feat: add explicit HostGraph live demo degraded states"
 ```
 
@@ -363,47 +308,39 @@ git commit -m "feat: add explicit HostGraph live demo degraded states"
 - Modify: `client/src/pages/AlertsPage.tsx`
 - Modify: `client/src/components/dashboard-primitives.tsx`
 - Modify: `client/src/components/HostGraphShell.tsx`
-- Deprecate/remove: `client/src/hooks/useFetch.ts` after no call sites remain.
+- Remove: `client/src/hooks/useFetch.ts` after all imports are gone.
 - Test: `tests/source-honesty-runtime.test.ts`
 
 **Interfaces:**
-- Consumes: `useHostGraphData`.
-- Produces: route-level explicit `DEMO`, `LIVE`, or `DEGRADED` presentation.
+- Consumes: `useHostGraphData` and fixed freshness policy.
+- Produces: route-level explicit source state.
 
-- [ ] **Step 1: Add a red source-honesty test**
+- [ ] **Step 1: Add red source-honesty regression**
 
-The test must assert that the route source contains no `usingFallback` logic and that `LIVE` failure copy says data is unavailable/degraded rather than saying demo fallback is active.
+Assert no page retains `usingFallback` logic and a LIVE 503 produces `DEGRADED`/`No synthetic substitution`, not demo data.
 
-- [ ] **Step 2: Replace `PageStateBanner` contract**
-
-Change it to accept:
+- [ ] **Step 2: Replace `PageStateBanner` API**
 
 ```ts
 { mode: 'DEMO' | 'LIVE' | 'DEGRADED'; error?: string | null; fetchedAt?: string | null }
 ```
 
-Copy rules:
+Copy:
 - DEMO: `Synthetic demo data`.
 - LIVE: `Validated live data`.
 - DEGRADED: `Live source degraded — no synthetic substitution`.
 
-- [ ] **Step 3: Migrate six pages**
+- [ ] **Step 3: Migrate pages and shell**
 
-Use `resolveConfiguredMode()` and `useHostGraphData`. If a required LIVE payload has no verified snapshot, render `EmptyCopy`/error state instead of fixtures.
+If required LIVE data has no verified snapshot, render an unavailable/error state. Replace the hard-coded `Synthetic data mode` workspace label with actual truth state.
 
-- [ ] **Step 4: Update shell identity**
-
-Replace the hard-coded `Synthetic data mode` text with the current configured/runtime state.
-
-- [ ] **Step 5: Delete obsolete fallback hook only after zero imports remain**
+- [ ] **Step 4: Remove legacy hook only after this returns zero imports**
 
 ```bash
 rg "useFetch" client/src
 ```
 
-Expected: zero results before deleting `client/src/hooks/useFetch.ts`.
-
-- [ ] **Step 6: Run full plan verification**
+- [ ] **Step 5: Run the complete Plan 1 gate**
 
 ```bash
 pnpm test:unit
@@ -412,15 +349,13 @@ pnpm check
 pnpm build
 ```
 
-Expected: all green.
-
-- [ ] **Step 7: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add client/src tests shared package.json pnpm-lock.yaml vitest.config.ts
+git add client/src shared tests package.json pnpm-lock.yaml vitest.config.ts
 git commit -m "feat: enforce HostGraph source-honest runtime modes"
 ```
 
 ## Plan 1 exit gate
 
-This plan passes only when a simulated LIVE API outage demonstrably produces `DEGRADED` with no fixture substitution, every existing endpoint response is runtime-validated, all six routes compile against the new read state, and the existing August source-honesty contract remains green.
+A simulated LIVE outage must produce DEGRADED without fixture substitution; stale LIVE data must be visibly degraded; production cannot default to DEMO when configuration is missing; every current endpoint response is runtime-validated; all six routes use the new truth-aware state; and the existing source-honesty interface test remains green.
