@@ -35,8 +35,10 @@ describe('HostGraph application edge security', () => {
     expect(response.headers.get('x-powered-by')).toBeNull();
   });
 
-  it('does not turn API or asset misses into the SPA document', async () => {
-    expect((await request('/api/v1/not-a-route')).status).toBe(404);
+  it('does not turn API or asset failures into the SPA document', async () => {
+    const api = await request('/api/v1/not-a-route');
+    expect(api.status).toBe(503);
+    expect(api.headers.get('content-type')).toContain('application/json');
     expect((await request('/assets/not-a-real-file.js')).status).toBe(404);
   });
 });
