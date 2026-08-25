@@ -2,6 +2,7 @@
  * Review interface: compact procurement command rail matching the approved HostGraph visual direction.
  */
 import { cn } from '@/lib/utils';
+import { configuredHostGraphMode } from '@/lib/runtimeMode';
 import { prefetchCommonRoutes, prefetchRoute, type PrefetchableRoute } from '@/lib/routePrefetch';
 import {
   BadgeDollarSign,
@@ -102,6 +103,8 @@ export function HostGraphShell() {
     prefetchCommonRoutes(['/margin-gap', '/alerts']);
   }, []);
 
+  const modeLabel = configuredHostGraphMode === 'LIVE' ? 'Live data mode' : 'Demo data mode';
+
   return (
     <div className="min-h-screen bg-[#060817] text-slate-100">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_18%_-10%,rgba(124,58,237,0.22),transparent_30%),radial-gradient(circle_at_88%_10%,rgba(34,211,238,0.12),transparent_28%),linear-gradient(180deg,#080b1d,#03050f_70%)]" />
@@ -131,7 +134,7 @@ export function HostGraphShell() {
                 <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-xs font-semibold text-white">RW</span>
                 <div className="min-w-0">
                   <p className="truncate text-xs font-medium text-slate-200">Review Workspace</p>
-                  <p className="mt-1 truncate text-[10px] text-slate-500">Synthetic data mode</p>
+                  <p className="mt-1 truncate text-[10px] text-slate-500">{modeLabel}</p>
                 </div>
                 <PackageSearch className="ml-auto size-4 text-slate-600" />
               </div>
