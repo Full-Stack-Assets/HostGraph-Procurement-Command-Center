@@ -41,7 +41,7 @@ export const VendorVerificationReceiptSchema = z.object({
   category: VendorCategorySchema,
   accountRef: z.string().min(1),
   adapterVersion: z.string().min(1),
-  authorizationBasis: VendorAuthorizationBasisSchema,
+  authorizationBasis: VendorAuthorizationBasisSchema.nullable(),
   operationId: z.string().min(1),
   requestedAt: z.string().datetime(),
   respondedAt: z.string().datetime(),
@@ -58,7 +58,11 @@ export const VendorVerificationReceiptSchema = z.object({
   seriesReadCount: z.number().int().nonnegative(),
   seriesStartedAt: z.string().datetime(),
   seriesCompletedAt: z.string().datetime(),
-}).strict();
+}).strict().superRefine((value, ctx) => {
+  if (value.result === 'PASS' && value.authorizationBasis === null) {
+    ctx.addIssue({ code: 'custom', path: ['authorizationBasis'], message: 'PASS receipts require an authorization basis.' });
+  }
+});
 export type VendorVerificationReceipt = z.infer<typeof VendorVerificationReceiptSchema>;
 
 export const RegionalVendorRegistryEntrySchema = z.object({
