@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   validate:
@@ -50,3 +50,60 @@ jobs:
 
       - name: Production dependency audit
         run: pnpm audit:prod
+
+  refresh_dependencies:
+    if: github.event_name == 'pull_request' && github.head_ref == 'review/hostgraph-hardening-2026-08-25' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Refresh vulnerable dependency graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm remove axios nanoid streamdown recharts
+          pnpm add express@4.22.2 react-router-dom@7.18.2
+          pnpm pkg set 'pnpm.overrides.path-to-regexp=0.1.13'
+          pnpm pkg set 'pnpm.overrides.lodash=4.18.1'
+          pnpm install --lockfile-only
+
+      - name: Verify refreshed graph and HostGraph release checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm audit --prod --audit-level high
+          node --test tests/interface-rebuild.test.mjs
+          pnpm test:unit
+          pnpm check
+          VITE_HOSTGRAPH_MODE=DEMO pnpm build
+          pnpm check:boundary
+          pnpm check:bundle
+
+      - name: Commit remediated manifest and lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json pnpm-lock.yaml
+          if git diff --cached --quiet; then
+            echo 'No dependency changes to commit.'
+            exit 0
+          fi
+          git commit -m 'deps: remediate HostGraph production audit findings'
+          git push origin HEAD:${{ github.head_ref }}
