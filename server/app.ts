@@ -1,5 +1,7 @@
 import express from 'express';
 import path from 'node:path';
+import { createApiReadProxy } from './api/proxy';
+import { createInvoiceUploadHandler } from './invoices/uploadRoute';
 
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
@@ -39,10 +41,23 @@ export function createApp(options: CreateAppOptions = {}) {
     res.status(200).json({ status: 'ok' });
   });
 
-  // API misses must never fall through to the SPA document.
-  app.all('/api/*', (_req, res) => {
-    res.setHeader('Cache-Control', 'no-store');
-    res.status(404).json({ error: 'API_ROUTE_NOT_FOUND' });
+  app.post(
+    '/api/v1/invoices/upload',
+    express.raw({ type: 'multipart/form-data', limit: 21 * 1024 * 1024 }),
+    createInvoiceUploadHandler({ upstreamApiBaseUrl: options.upstreamApiBaseUrl }),
+  );
+
+  // Existing HostGraph analytics endpoints are read-only at this edge. Other
+  // mutation routes remain explicitly unavailable unless they receive their
+  // own bounded, reviewed handler like invoice upload above.
+  app.use('/api', createApiReadProxy({ upstreamApiBaseUrl: options.upstreamApiBaseUrl }));
+
+  app.use((error: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (error && typeof error === 'object' && 'type' in error && error.type === 'entity.too.large') {
+      res.status(413).json({ error: 'TOO_LARGE' });
+      return;
+    }
+    next(error);
   });
 
   app.use(
