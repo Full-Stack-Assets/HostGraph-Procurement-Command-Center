@@ -11,6 +11,7 @@
     "check": "tsc --noEmit",
     "test:unit": "vitest run",
     "test:watch": "vitest",
+    "verify:vendors": "tsx scripts/verify-live-vendors.ts",
     "gate:vendors": "tsx scripts/vendor-live-gate.ts",
     "release:manifest": "tsx scripts/create-release-manifest.ts",
     "format": "prettier --write ."
