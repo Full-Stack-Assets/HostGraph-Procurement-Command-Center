@@ -62,7 +62,7 @@ export async function verifyVendorSeries(
     category: context.category,
     accountRef: context.accountRef,
     adapterVersion: adapter.version,
-    authorizationBasis: authorizationBasis ?? 'VENDOR_AUTHORIZED_INTEGRATION',
+    authorizationBasis,
     operationId: first.operationId,
     requestedAt: first.requestedAt,
     respondedAt: last.respondedAt,
