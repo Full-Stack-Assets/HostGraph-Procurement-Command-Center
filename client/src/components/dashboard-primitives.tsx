@@ -117,7 +117,7 @@ export function MetricCard({
           </div>
         </div>
         <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 font-mono text-[11px] uppercase tracking-[0.24em] text-zinc-500">
-          Live
+          Signal
         </span>
       </div>
       <p className="mt-5 text-sm leading-6 text-zinc-400">{detail}</p>
@@ -152,15 +152,25 @@ export function SectionHeading({
 
 export function PageStateBanner({ usingFallback, error }: { usingFallback?: boolean; error?: string | null }) {
   if (!usingFallback && !error) return null;
+
+  if (usingFallback) {
+    return (
+      <div className="flex items-start gap-3 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-100">
+        <Info className="mt-0.5 size-4 shrink-0" />
+        <div>
+          <p className="font-medium">Synthetic demo data</p>
+          <p className="mt-1 text-cyan-100/80">HostGraph is intentionally running repository fixtures. No live account data is represented.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-start gap-3 rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
       <TriangleAlert className="mt-0.5 size-4 shrink-0" />
       <div>
-        <p className="font-medium">Showing standalone demo data</p>
-        <p className="mt-1 text-amber-100/80">
-          The live API was unavailable, so HostGraph fell back to the mock Boston restaurant-group storyline.
-          {error ? ` Last error: ${error}` : ''}
-        </p>
+        <p className="font-medium">Live source degraded — no synthetic substitution</p>
+        <p className="mt-1 text-amber-100/80">The current view is limited to the last verified live snapshot, if one exists.{error ? ` Last error: ${error}` : ''}</p>
       </div>
     </div>
   );
@@ -177,7 +187,7 @@ export function LoadingPanel({ label = 'Loading procurement intelligence…' }: 
   );
 }
 
-export function SeverityBadge({ severity }: { severity: 'critical' | 'warning' | 'info' | 'high' | 'medium' | 'low' | 'critical' | 'watch' | 'stable' }) {
+export function SeverityBadge({ severity }: { severity: 'critical' | 'warning' | 'info' | 'high' | 'medium' | 'low' | 'watch' | 'stable' }) {
   const styles: Record<string, string> = {
     critical: 'border-red-400/20 bg-red-400/10 text-red-200',
     warning: 'border-amber-400/20 bg-amber-400/10 text-amber-200',
