@@ -91,6 +91,8 @@ jobs:
           echo "HOSTGRAPH_RELEASE_COMMIT_SHA=${GITHUB_SHA}" >> "$GITHUB_ENV"
           echo "HOSTGRAPH_RELEASE_BUILD_SHA256=$(sha256sum dist/index.js | cut -d' ' -f1)" >> "$GITHUB_ENV"
           echo "HOSTGRAPH_CI_REFERENCE=${GITHUB_RUN_ID}" >> "$GITHUB_ENV"
+      - name: Generate current vendor verification receipts
+        run: pnpm verify:vendors
       - name: Run 10/10 vendor gate
         run: pnpm gate:vendors -- --json
       - name: Create and verify release manifest
