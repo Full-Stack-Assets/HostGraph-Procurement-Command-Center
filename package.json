@@ -12,6 +12,7 @@
     "test:unit": "vitest run",
     "test:watch": "vitest",
     "gate:vendors": "tsx scripts/vendor-live-gate.ts",
+    "release:manifest": "tsx scripts/create-release-manifest.ts",
     "format": "prettier --write ."
   },
   "dependencies": {
