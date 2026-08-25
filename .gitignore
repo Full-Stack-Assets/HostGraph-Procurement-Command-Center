@@ -108,5 +108,8 @@ temp/
 # Webdev artifacts (checkpoint zips, migrations, etc.)
 .webdev/
 
+# HostGraph local verification receipts and release evidence
+.hostgraph/
+
 # Manus version file (auto-generated, not part of source)
 client/public/__manus__/version.json
