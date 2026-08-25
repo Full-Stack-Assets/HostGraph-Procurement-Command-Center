@@ -94,7 +94,9 @@ export function mergeQueueItems(priorityItems: InvoiceQueueRecord[], existingIte
   for (const incoming of priorityItems) {
     const key = queueIdentity(incoming) || incoming.id;
     const existing = merged.get(key);
-    merged.set(key, existing ? { ...existing, ...incoming,
+    merged.set(key, existing ? {
+      ...existing,
+      ...incoming,
       checksumSha256: incoming.checksumSha256 ?? existing.checksumSha256,
       reviewerId: incoming.reviewerId ?? existing.reviewerId,
       reviewedAt: incoming.reviewedAt ?? existing.reviewedAt,
@@ -102,5 +104,5 @@ export function mergeQueueItems(priorityItems: InvoiceQueueRecord[], existingIte
     } : incoming);
   }
 
-  return [...merged.values()].sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+  return Array.from(merged.values()).sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
 }
