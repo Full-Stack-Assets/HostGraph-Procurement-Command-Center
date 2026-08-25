@@ -19,6 +19,7 @@ import {
   type InvoiceJobStatusResponse,
   type InvoiceUploadResponse,
 } from '@shared/contracts/analytics';
+import { sha256File, validateInvoiceFile } from '@/features/invoices/fileValidation';
 
 export type { InvoiceJobStatusResponse, InvoiceUploadResponse } from '@shared/contracts/analytics';
 
@@ -205,8 +206,11 @@ export const api = {
       InvoiceJobStatusResponseSchema,
     ),
   uploadInvoice: async (file: File): Promise<InvoiceUploadResponse> => {
+    await validateInvoiceFile(file);
+    const checksumSha256 = await sha256File(file);
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('checksumSha256', checksumSha256);
     return requestValidated(
       '/api/v1/invoices/upload',
       InvoiceUploadResponseSchema,
