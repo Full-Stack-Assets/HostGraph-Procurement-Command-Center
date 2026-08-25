@@ -24,7 +24,8 @@ import {
   type IngestionQueueItem,
   type SavedFilterPreset,
 } from '@/data/mockData';
-import { useFetch } from '@/hooks/useFetch';
+import { useHostGraphData } from '@/hooks/useHostGraphData';
+import { configuredHostGraphMode } from '@/lib/runtimeMode';
 import { api, type InvoiceJobStatusResponse, type InvoiceUploadResponse } from '@/services/api';
 import {
   formatPercent,
@@ -46,11 +47,12 @@ const defaultFilters = {
 const locations = ['All Boston locations', 'Back Bay', 'South End', 'Seaport', 'Cambridge', 'Beacon Hill'];
 const categories = ['All categories', 'Dairy', 'Protein', 'Produce', 'Dry goods'];
 const presetStorageKey = 'hostgraph-margin-gap-presets';
-const queueStorageKey = 'hostgraph-ingestion-queue';
+const queueStorageKey = configuredHostGraphMode === 'DEMO' ? 'hostgraph-ingestion-queue-demo' : 'hostgraph-ingestion-queue-live';
 
 type FilterKey = keyof typeof defaultFilters;
 type MarginFilters = typeof defaultFilters;
 type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
+type QueueSourceState = 'probing' | 'live' | 'degraded' | 'demo';
 
 function readFilters(searchParams: URLSearchParams): MarginFilters {
   return {
@@ -116,7 +118,7 @@ function normalizeQueueSource(value: unknown): IngestionQueueItem['source'] {
   return 'upload';
 }
 
-function buildQueueKey(item: Pick<IngestionQueueItem, 'id' | 'jobId'> | Pick<InvoiceJobStatusResponse, 'id' | 'jobId'>) {
+function buildQueueKey(item: { id?: string; jobId?: string }) {
   return (typeof item.jobId === 'string' && item.jobId.trim().length > 0 ? item.jobId : undefined) ??
     (typeof item.id === 'string' && item.id.trim().length > 0 ? item.id : undefined) ??
     '';
@@ -237,19 +239,31 @@ function QueueStatusDot({ status }: { status: IngestionQueueItem['status'] }) {
 function InvoiceUploadPanel({
   location,
   onQueued,
+  enabled,
 }: {
   location: string;
   onQueued: (item: IngestionQueueItem) => void;
+  enabled: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle');
-  const [uploadMessage, setUploadMessage] = useState('Drop an invoice PDF, image, or CSV to send it to the backend ingestion endpoint.');
+  const [uploadMessage, setUploadMessage] = useState(
+    enabled
+      ? 'Drop an invoice PDF, image, or CSV to send it to the backend ingestion endpoint.'
+      : 'Invoice ingestion is disabled in DEMO mode so synthetic review cannot mutate live systems.',
+  );
   const [uploadMeta, setUploadMeta] = useState<string | null>(null);
 
   const processFile = useCallback(
     async (file: File) => {
+      if (!enabled) {
+        setUploadStatus('error');
+        setUploadMessage('Switch to LIVE mode with an authorized backend before uploading invoices.');
+        return;
+      }
+
       setFileName(file.name);
       setUploadStatus('uploading');
       setUploadMeta(null);
@@ -273,18 +287,16 @@ function InvoiceUploadPanel({
       } catch (error) {
         setUploadStatus('error');
         setUploadMessage(error instanceof Error ? error.message : 'Invoice upload failed.');
-        setUploadMeta('The panel is wired to the live upload endpoint. If the backend is offline, queue history remains available from the persisted demo dataset.');
+        setUploadMeta('Live ingestion failed. No synthetic queue item was created.');
       }
     },
-    [location, onQueued],
+    [enabled, location, onQueued],
   );
 
   const handleInputChange = useCallback(
     async (event: ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
-      if (file) {
-        await processFile(file);
-      }
+      if (file) await processFile(file);
       event.target.value = '';
     },
     [processFile],
@@ -295,9 +307,7 @@ function InvoiceUploadPanel({
       event.preventDefault();
       setIsDragging(false);
       const file = event.dataTransfer.files?.[0];
-      if (file) {
-        await processFile(file);
-      }
+      if (file) await processFile(file);
     },
     [processFile],
   );
@@ -314,20 +324,26 @@ function InvoiceUploadPanel({
       <SectionHeading
         eyebrow="Live ingestion"
         title="Invoice dropzone"
-        description="This panel posts directly to the live upload endpoint. Successful uploads are written into the operator queue so finance teams can track parsing state beside the Margin Gap report."
+        description={enabled
+          ? 'Uploads post to the authorized live ingestion endpoint and enter the operator queue for review.'
+          : 'DEMO mode is read-only. Invoice upload is intentionally disabled to keep synthetic review isolated from live systems.'}
       />
       <div className="mt-6 space-y-4">
         <div
+          aria-disabled={!enabled}
           onDragOver={(event) => {
+            if (!enabled) return;
             event.preventDefault();
             setIsDragging(true);
           }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={(event) => {
-            void handleDrop(event);
+            if (enabled) void handleDrop(event);
           }}
-          onClick={() => inputRef.current?.click()}
-          className={`group cursor-pointer rounded-[28px] border border-dashed px-6 py-8 transition ${
+          onClick={() => {
+            if (enabled) inputRef.current?.click();
+          }}
+          className={`group rounded-[28px] border border-dashed px-6 py-8 transition ${enabled ? 'cursor-pointer' : 'cursor-not-allowed opacity-65'} ${
             isDragging
               ? 'border-emerald-400/60 bg-emerald-400/10'
               : 'border-white/12 bg-black/20 hover:border-emerald-400/30 hover:bg-white/[0.03]'
@@ -337,34 +353,23 @@ function InvoiceUploadPanel({
             ref={inputRef}
             type="file"
             accept=".pdf,.csv,image/*"
-            onChange={(event) => {
-              void handleInputChange(event);
-            }}
+            disabled={!enabled}
+            onChange={(event) => void handleInputChange(event)}
             className="hidden"
           />
           <div className="flex flex-col items-center justify-center text-center">
             <div className="flex size-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-emerald-200 transition group-hover:border-emerald-400/30 group-hover:bg-emerald-400/10">
               <UploadCloud className="size-6" />
             </div>
-            <p className="mt-4 text-base font-medium text-white">Drop invoice files here or click to browse</p>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-400">
-              Requests post to <span className="font-mono text-zinc-200">/api/v1/invoices/upload</span> so uploaded invoices can land in the same queue operators use during demos and live reviews.
-            </p>
+            <p className="mt-4 text-base font-medium text-white">{enabled ? 'Drop invoice files here or click to browse' : 'Live invoice ingestion disabled in DEMO'}</p>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-400">{enabled ? 'Requests post to /api/v1/invoices/upload and are tracked in the live queue.' : 'Switch to an authorized LIVE configuration before sending any customer invoice data.'}</p>
             {fileName ? <p className="mt-4 font-mono text-xs uppercase tracking-[0.28em] text-zinc-500">Most recent file: {fileName}</p> : null}
           </div>
         </div>
 
         <div className={`rounded-2xl border px-4 py-4 ${statusStyles[uploadStatus]}`}>
           <div className="flex items-start gap-3">
-            {uploadStatus === 'uploading' ? (
-              <LoaderCircle className="mt-0.5 size-4 shrink-0 animate-spin" />
-            ) : uploadStatus === 'success' ? (
-              <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
-            ) : uploadStatus === 'error' ? (
-              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-            ) : (
-              <FileUp className="mt-0.5 size-4 shrink-0" />
-            )}
+            {uploadStatus === 'uploading' ? <LoaderCircle className="mt-0.5 size-4 shrink-0 animate-spin" /> : uploadStatus === 'success' ? <CheckCircle2 className="mt-0.5 size-4 shrink-0" /> : uploadStatus === 'error' ? <AlertTriangle className="mt-0.5 size-4 shrink-0" /> : <FileUp className="mt-0.5 size-4 shrink-0" />}
             <div className="space-y-1">
               <p className="text-sm font-medium">{uploadMessage}</p>
               {uploadMeta ? <p className="font-mono text-xs uppercase tracking-[0.2em] text-current/80">{uploadMeta}</p> : null}
@@ -385,39 +390,44 @@ function IngestionQueuePanel({
   onRefresh,
 }: {
   items: IngestionQueueItem[];
-  liveState: 'probing' | 'live' | 'fallback';
+  liveState: QueueSourceState;
   syncError: string | null;
   lastSyncedAt: string | null;
   refreshing: boolean;
   onRefresh: () => void | Promise<void>;
 }) {
-  const liveTone =
-    liveState === 'live'
-      ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200'
-      : liveState === 'probing'
-        ? 'border-cyan-400/30 bg-cyan-400/10 text-cyan-100'
+  const liveTone = liveState === 'live'
+    ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200'
+    : liveState === 'probing'
+      ? 'border-cyan-400/30 bg-cyan-400/10 text-cyan-100'
+      : liveState === 'demo'
+        ? 'border-violet-400/30 bg-violet-400/10 text-violet-100'
         : 'border-amber-400/30 bg-amber-400/10 text-amber-100';
 
-  const liveLabel =
-    liveState === 'live' ? 'Live status polling' : liveState === 'probing' ? 'Checking queue API' : 'Persisted demo queue';
+  const liveLabel = liveState === 'live'
+    ? 'Live status polling'
+    : liveState === 'probing'
+      ? 'Checking queue API'
+      : liveState === 'demo'
+        ? 'Synthetic demo queue'
+        : 'Live queue degraded';
 
   return (
     <Surface className="h-full">
       <SectionHeading
         eyebrow="Queue"
         title="Invoice parsing queue"
-        description="Uploads and seeded demo records live in one operator-facing queue so teams can see what is waiting, parsing, under review, cleared, or blocked."
+        description={liveState === 'demo'
+          ? 'Seeded records are explicitly synthetic and isolated in the DEMO-only storage namespace.'
+          : 'The live queue contains only current or previously observed live ingestion records. No demo records are substituted on failure.'}
         aside={
           <div className="flex flex-wrap items-center gap-3">
-            <span className={`inline-flex items-center rounded-full border px-3 py-1 font-mono text-[11px] uppercase tracking-[0.24em] ${liveTone}`}>
-              {liveLabel}
-            </span>
+            <span className={`inline-flex items-center rounded-full border px-3 py-1 font-mono text-[11px] uppercase tracking-[0.24em] ${liveTone}`}>{liveLabel}</span>
             <button
               type="button"
-              onClick={() => {
-                void onRefresh();
-              }}
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-zinc-100 transition hover:border-cyan-400/30 hover:text-white"
+              disabled={liveState === 'demo'}
+              onClick={() => void onRefresh()}
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-zinc-100 transition hover:border-cyan-400/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
               <RefreshCw className={`size-4 ${refreshing ? 'animate-spin' : ''}`} />
               Refresh queue
@@ -426,18 +436,18 @@ function IngestionQueuePanel({
         }
       />
       <div className="mt-4 space-y-2 text-xs uppercase tracking-[0.22em] text-zinc-500">
-        <p>{lastSyncedAt ? `Last sync ${formatTimestamp(lastSyncedAt)}` : 'No live queue sync recorded yet'}</p>
+        <p>{lastSyncedAt ? `Last sync ${formatTimestamp(lastSyncedAt)}` : liveState === 'demo' ? 'Synthetic queue — no live sync attempted' : 'No live queue sync recorded yet'}</p>
         {syncError ? <p className="text-amber-200/90">Last queue sync error: {syncError}</p> : null}
       </div>
       <div className="mt-6 space-y-3">
-        {items.slice(0, 6).map((item) => (
+        {items.length === 0 ? (
+          <div className="rounded-[24px] border border-dashed border-white/10 bg-black/15 p-6 text-sm text-zinc-500">No verified live queue records are available.</div>
+        ) : items.slice(0, 6).map((item) => (
           <article key={item.id} className="rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-medium text-white">{item.fileName}</p>
-                <p className="mt-1 text-xs uppercase tracking-[0.22em] text-zinc-500">
-                  {item.location} · {item.vendor} · {item.documentType}
-                </p>
+                <p className="mt-1 text-xs uppercase tracking-[0.22em] text-zinc-500">{item.location} · {item.vendor} · {item.documentType}</p>
               </div>
               <div className="flex items-center gap-2">
                 <QueueStatusDot status={item.status} />
@@ -462,9 +472,10 @@ export default function MarginGapPage() {
   const [shareState, setShareState] = useState<'idle' | 'copied'>('idle');
   const [presetName, setPresetName] = useState('');
   const [presets, setPresets] = usePersistentState<SavedFilterPreset[]>(presetStorageKey, savedFilterPresets);
-  const [queueItems, setQueueItems] = usePersistentState<IngestionQueueItem[]>(queueStorageKey, ingestionQueueData.items);
+  const initialQueue = configuredHostGraphMode === 'DEMO' ? ingestionQueueData.items : [];
+  const [queueItems, setQueueItems] = usePersistentState<IngestionQueueItem[]>(queueStorageKey, initialQueue);
   const queueItemsRef = useRef(queueItems);
-  const [queueLiveState, setQueueLiveState] = useState<'probing' | 'live' | 'fallback'>('probing');
+  const [queueLiveState, setQueueLiveState] = useState<QueueSourceState>(configuredHostGraphMode === 'DEMO' ? 'demo' : 'probing');
   const [queueSyncError, setQueueSyncError] = useState<string | null>(null);
   const [queueLastSyncedAt, setQueueLastSyncedAt] = useState<string | null>(null);
   const [queueRefreshing, setQueueRefreshing] = useState(false);
@@ -474,7 +485,6 @@ export default function MarginGapPage() {
   const updateSearch = useCallback(
     (updates: Partial<Record<FilterKey | 'ingredientId', string | null>>, options?: { replace?: boolean; resetIngredient?: boolean }) => {
       const next = new URLSearchParams(searchParams);
-
       Object.entries(updates).forEach(([key, value]) => {
         if (!value || (key in defaultFilters && value === defaultFilters[key as FilterKey])) {
           next.delete(key);
@@ -482,28 +492,18 @@ export default function MarginGapPage() {
         }
         next.set(key, value);
       });
-
-      if (options?.resetIngredient) {
-        next.delete('ingredientId');
-      }
-
+      if (options?.resetIngredient) next.delete('ingredientId');
       setSearchParams(next, { replace: options?.replace ?? true });
     },
     [searchParams, setSearchParams],
   );
 
   const fetchMarginGap = useCallback(
-    () =>
-      api.getMarginGap({
-        location: filters.location,
-        dateFrom: filters.dateFrom,
-        dateTo: filters.dateTo,
-        category: filters.category,
-      }),
+    () => api.getMarginGap({ location: filters.location, dateFrom: filters.dateFrom, dateTo: filters.dateTo, category: filters.category }),
     [filters.category, filters.dateFrom, filters.dateTo, filters.location],
   );
 
-  const marginResponse = useFetch(fetchMarginGap, {
+  const marginResponse = useHostGraphData(fetchMarginGap, {
     fallbackData: marginGapData,
     dependencies: [filters.location, filters.dateFrom, filters.dateTo, filters.category],
   });
@@ -512,26 +512,19 @@ export default function MarginGapPage() {
 
   useEffect(() => {
     if (!marginResponse.data.rows.length) return;
-
     const activeExists = marginResponse.data.rows.some((row) => row.ingredientId === activeId);
-    if (!activeExists) {
-      updateSearch({ ingredientId: marginResponse.data.rows[0]?.ingredientId ?? null }, { replace: true });
-    }
+    if (!activeExists) updateSearch({ ingredientId: marginResponse.data.rows[0]?.ingredientId ?? null }, { replace: true });
   }, [activeId, marginResponse.data.rows, updateSearch]);
 
   const fetchDrilldown = useCallback(() => api.getMarginGapDrilldown(activeId), [activeId]);
-  const drilldownResponse = useFetch(fetchDrilldown, {
+  const drilldownResponse = useHostGraphData(fetchDrilldown, {
     fallbackData: marginDrilldowns[activeId] ?? marginDrilldowns['mozz-001'],
     dependencies: [activeId],
     enabled: Boolean(activeId),
   });
 
   const overlayData = useMemo(
-    () =>
-      marginResponse.data.benchmarkOverlay.map((slice) => ({
-        ...slice,
-        value: Number(slice.value.toFixed(1)),
-      })),
+    () => marginResponse.data.benchmarkOverlay.map((slice) => ({ ...slice, value: Number(slice.value.toFixed(1)) })),
     [marginResponse.data.benchmarkOverlay],
   );
 
@@ -545,6 +538,12 @@ export default function MarginGapPage() {
   }, [queueItems]);
 
   const pollQueue = useCallback(async () => {
+    if (configuredHostGraphMode === 'DEMO') {
+      setQueueLiveState('demo');
+      setQueueSyncError(null);
+      return;
+    }
+
     setQueueRefreshing(true);
     let syncedFromApi = false;
     let observedError: string | null = null;
@@ -568,7 +567,6 @@ export default function MarginGapPage() {
 
     if (!syncedFromApi) {
       const trackedJobs = queueItemsRef.current.filter((item) => item.jobId && item.status !== 'completed' && item.status !== 'failed').slice(0, 6);
-
       if (trackedJobs.length > 0) {
         const results = await Promise.allSettled(trackedJobs.map((item) => api.getInvoiceJobStatus(item.jobId!)));
         const liveUpdates = results.flatMap((result, index) => {
@@ -576,10 +574,8 @@ export default function MarginGapPage() {
             observedError = observedError ?? (result.reason instanceof Error ? result.reason.message : 'Unable to refresh invoice status');
             return [];
           }
-
           return [normalizeLiveQueueItem(result.value, trackedJobs[index])];
         });
-
         if (liveUpdates.length > 0) {
           setQueueItems((current) => mergeQueueItems(liveUpdates, current));
           setQueueLiveState('live');
@@ -591,33 +587,25 @@ export default function MarginGapPage() {
     }
 
     if (!syncedFromApi) {
-      setQueueLiveState('fallback');
+      setQueueLiveState('degraded');
       setQueueSyncError(observedError);
     }
-
     setQueueRefreshing(false);
   }, [setQueueItems]);
 
   useEffect(() => {
+    if (configuredHostGraphMode === 'DEMO') {
+      setQueueLiveState('demo');
+      return;
+    }
     void pollQueue();
-
     const interval = window.setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        void pollQueue();
-      }
+      if (document.visibilityState === 'visible') void pollQueue();
     }, 20000);
-
-    return () => {
-      window.clearInterval(interval);
-    };
+    return () => window.clearInterval(interval);
   }, [pollQueue]);
 
-  const handleFilterChange = useCallback(
-    (key: FilterKey, value: string) => {
-      updateSearch({ [key]: value }, { resetIngredient: true });
-    },
-    [updateSearch],
-  );
+  const handleFilterChange = useCallback((key: FilterKey, value: string) => updateSearch({ [key]: value }, { resetIngredient: true }), [updateSearch]);
 
   const handleCopyLink = useCallback(async () => {
     try {
@@ -631,201 +619,101 @@ export default function MarginGapPage() {
 
   const handleSavePreset = useCallback(() => {
     const name = presetName.trim() || buildPresetName(filters);
-    const nextPreset: SavedFilterPreset = {
-      id: `preset-${Date.now()}`,
-      name,
-      filters,
-      ingredientId: activeId || undefined,
-      updatedAt: new Date().toISOString(),
-    };
-
+    const nextPreset: SavedFilterPreset = { id: `preset-${Date.now()}`, name, filters, ingredientId: activeId || undefined, updatedAt: new Date().toISOString() };
     setPresets((current) => [nextPreset, ...current.filter((preset) => preset.name !== name)].slice(0, 8));
     setPresetName('');
   }, [activeId, filters, presetName, setPresets]);
 
-  const handleApplyPreset = useCallback(
-    (preset: SavedFilterPreset) => {
-      updateSearch(
-        {
-          location: preset.filters.location,
-          dateFrom: preset.filters.dateFrom,
-          dateTo: preset.filters.dateTo,
-          category: preset.filters.category,
-          ingredientId: preset.ingredientId ?? null,
-        },
-        { replace: false },
-      );
-    },
-    [updateSearch],
-  );
+  const handleApplyPreset = useCallback((preset: SavedFilterPreset) => {
+    updateSearch({
+      location: preset.filters.location,
+      dateFrom: preset.filters.dateFrom,
+      dateTo: preset.filters.dateTo,
+      category: preset.filters.category,
+      ingredientId: preset.ingredientId ?? null,
+    }, { replace: false });
+  }, [updateSearch]);
 
-  const handleDeletePreset = useCallback(
-    (presetId: string) => {
-      setPresets((current) => current.filter((preset) => preset.id !== presetId));
-    },
-    [setPresets],
-  );
+  const handleDeletePreset = useCallback((presetId: string) => {
+    setPresets((current) => current.filter((preset) => preset.id !== presetId));
+  }, [setPresets]);
 
-  const handleQueueItem = useCallback(
-    (item: IngestionQueueItem) => {
-      setQueueItems((current) => [item, ...current.filter((existing) => existing.id !== item.id)].slice(0, 12));
-    },
-    [setQueueItems],
-  );
+  const handleQueueItem = useCallback((item: IngestionQueueItem) => {
+    setQueueItems((current) => [item, ...current.filter((existing) => existing.id !== item.id)].slice(0, 12));
+  }, [setQueueItems]);
 
   if (marginResponse.loading) return <LoadingPanel label="Loading margin-gap hero view…" />;
+
+  const marginSourceLabel = marginResponse.usingFallback
+    ? 'Synthetic demo data'
+    : marginResponse.error
+      ? 'Live source degraded'
+      : 'Validated live API';
 
   return (
     <div className="space-y-6">
       <HeroPanel
         eyebrow="Hero view"
         title="Where actual cost breaks away from theory"
-        description="The Margin Gap report turns procurement leakage into an operator workflow. Filters are mirrored in the URL, presets can be saved locally for repeat operators, and the upload queue now exposes live ingestion handoffs beside the report itself."
+        description="The Margin Gap report turns procurement leakage into an operator workflow. Filters are mirrored in the URL, presets can be saved locally, and live invoice queue state remains isolated from synthetic demo history."
         image="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 720'%3E%3Crect width='1200' height='720' fill='%23070b12'/%3E%3Ccircle cx='930' cy='160' r='180' fill='%2306b6d4' fill-opacity='0.14'/%3E%3Ccircle cx='260' cy='500' r='260' fill='%2310b981' fill-opacity='0.12'/%3E%3Cpath d='M0 520 C220 420 420 640 720 500 C900 420 1030 450 1200 360 L1200 720 L0 720 Z' fill='%23ffffff' fill-opacity='0.04'/%3E%3C/svg%3E"
       >
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <label className="space-y-2 text-sm text-zinc-300">
             <span className="block font-mono text-[11px] uppercase tracking-[0.28em] text-zinc-500">Location</span>
-            <select
-              value={filters.location}
-              onChange={(event) => handleFilterChange('location', event.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400/40"
-            >
-              {locations.map((location) => (
-                <option key={location} value={location}>
-                  {location}
-                </option>
-              ))}
+            <select value={filters.location} onChange={(event) => handleFilterChange('location', event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400/40">
+              {locations.map((location) => <option key={location} value={location}>{location}</option>)}
             </select>
           </label>
           <label className="space-y-2 text-sm text-zinc-300">
             <span className="block font-mono text-[11px] uppercase tracking-[0.28em] text-zinc-500">Date from</span>
-            <input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(event) => handleFilterChange('dateFrom', event.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400/40"
-            />
+            <input type="date" value={filters.dateFrom} onChange={(event) => handleFilterChange('dateFrom', event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400/40" />
           </label>
           <label className="space-y-2 text-sm text-zinc-300">
             <span className="block font-mono text-[11px] uppercase tracking-[0.28em] text-zinc-500">Date to</span>
-            <input
-              type="date"
-              value={filters.dateTo}
-              onChange={(event) => handleFilterChange('dateTo', event.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400/40"
-            />
+            <input type="date" value={filters.dateTo} onChange={(event) => handleFilterChange('dateTo', event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400/40" />
           </label>
           <label className="space-y-2 text-sm text-zinc-300">
             <span className="block font-mono text-[11px] uppercase tracking-[0.28em] text-zinc-500">Category</span>
-            <select
-              value={filters.category}
-              onChange={(event) => handleFilterChange('category', event.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400/40"
-            >
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
+            <select value={filters.category} onChange={(event) => handleFilterChange('category', event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400/40">
+              {categories.map((category) => <option key={category} value={category}>{category}</option>)}
             </select>
           </label>
         </div>
-
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setSearchParams(new URLSearchParams())}
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-zinc-200 transition hover:border-emerald-400/30 hover:text-white"
-          >
-            <RefreshCw className="size-4" />
-            Reset filters
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              void handleCopyLink();
-            }}
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-zinc-200 transition hover:border-cyan-400/30 hover:text-white"
-          >
-            {shareState === 'copied' ? <Copy className="size-4" /> : <Link2 className="size-4" />}
-            {shareState === 'copied' ? 'Share link copied' : 'Copy share link'}
-          </button>
-          <span className={`inline-flex items-center rounded-full border px-3 py-1 font-mono text-[11px] uppercase tracking-[0.24em] ${marginResponse.usingFallback ? 'border-amber-400/30 bg-amber-400/10 text-amber-200' : 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200'}`}>
-            {marginResponse.usingFallback ? 'Demo fallback active' : 'Live API connected'}
-          </span>
-          <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">
-            URL state: {searchParams.toString() || 'defaults applied'}
-          </p>
+          <button type="button" onClick={() => setSearchParams(new URLSearchParams())} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-zinc-200 transition hover:border-emerald-400/30 hover:text-white"><RefreshCw className="size-4" />Reset filters</button>
+          <button type="button" onClick={() => void handleCopyLink()} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-zinc-200 transition hover:border-cyan-400/30 hover:text-white">{shareState === 'copied' ? <Copy className="size-4" /> : <Link2 className="size-4" />}{shareState === 'copied' ? 'Share link copied' : 'Copy share link'}</button>
+          <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 font-mono text-[11px] uppercase tracking-[0.24em] text-zinc-300">{marginSourceLabel}</span>
+          <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">URL state: {searchParams.toString() || 'defaults applied'}</p>
         </div>
       </HeroPanel>
 
       <PageStateBanner usingFallback={marginResponse.usingFallback || drilldownResponse.usingFallback} error={marginResponse.error || drilldownResponse.error} />
 
       <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <InvoiceUploadPanel location={filters.location} onQueued={handleQueueItem} />
-        <IngestionQueuePanel
-          items={sortedQueueItems}
-          liveState={queueLiveState}
-          syncError={queueSyncError}
-          lastSyncedAt={queueLastSyncedAt}
-          refreshing={queueRefreshing}
-          onRefresh={pollQueue}
-        />
+        <InvoiceUploadPanel location={filters.location} onQueued={handleQueueItem} enabled={configuredHostGraphMode === 'LIVE'} />
+        <IngestionQueuePanel items={sortedQueueItems} liveState={queueLiveState} syncError={queueSyncError} lastSyncedAt={queueLastSyncedAt} refreshing={queueRefreshing} onRefresh={pollQueue} />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
         <Surface>
-          <SectionHeading
-            eyebrow="Operator memory"
-            title="Saved filter presets"
-            description="Store recurring analytical slices locally so operators can jump back to a known problem state without rebuilding filters by hand."
-          />
+          <SectionHeading eyebrow="Operator memory" title="Saved filter presets" description="Store recurring analytical slices locally so operators can jump back to a known problem state without rebuilding filters by hand." />
           <div className="mt-6 flex flex-col gap-3 lg:flex-row">
-            <input
-              value={presetName}
-              onChange={(event) => setPresetName(event.target.value)}
-              placeholder={buildPresetName(filters)}
-              className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-500 focus:border-emerald-400/40"
-            />
-            <button
-              type="button"
-              onClick={handleSavePreset}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm font-medium text-emerald-100 transition hover:border-emerald-300/40 hover:bg-emerald-400/15"
-            >
-              <Save className="size-4" />
-              Save current view
-            </button>
+            <input value={presetName} onChange={(event) => setPresetName(event.target.value)} placeholder={buildPresetName(filters)} className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-500 focus:border-emerald-400/40" />
+            <button type="button" onClick={handleSavePreset} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm font-medium text-emerald-100 transition hover:border-emerald-300/40 hover:bg-emerald-400/15"><Save className="size-4" />Save current view</button>
           </div>
           <div className="mt-6 space-y-3">
             {presets.map((preset) => (
               <div key={preset.id} className="flex flex-col gap-4 rounded-[24px] border border-white/8 bg-white/[0.03] p-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <p className="text-sm font-medium text-white">{preset.name}</p>
-                  <p className="mt-1 text-xs uppercase tracking-[0.22em] text-zinc-500">
-                    {preset.filters.location} · {preset.filters.category} · {preset.filters.dateFrom} → {preset.filters.dateTo}
-                  </p>
-                  <p className="mt-2 text-sm text-zinc-400">
-                    {preset.ingredientId ? `Focused ingredient: ${preset.ingredientId}` : 'No fixed ingredient focus saved.'}
-                  </p>
+                  <p className="mt-1 text-xs uppercase tracking-[0.22em] text-zinc-500">{preset.filters.location} · {preset.filters.category} · {preset.filters.dateFrom} → {preset.filters.dateTo}</p>
+                  <p className="mt-2 text-sm text-zinc-400">{preset.ingredientId ? `Focused ingredient: ${preset.ingredientId}` : 'No fixed ingredient focus saved.'}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-zinc-500">Updated {formatTimestamp(preset.updatedAt)}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleApplyPreset(preset)}
-                    className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-zinc-100 transition hover:border-cyan-400/30 hover:text-white"
-                  >
-                    Apply preset
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDeletePreset(preset.id)}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-transparent px-4 py-2 text-sm text-zinc-400 transition hover:border-red-400/30 hover:text-red-200"
-                  >
-                    <Trash2 className="size-4" />
-                    Delete
-                  </button>
+                  <button type="button" onClick={() => handleApplyPreset(preset)} className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-zinc-100 transition hover:border-cyan-400/30 hover:text-white">Apply preset</button>
+                  <button type="button" onClick={() => handleDeletePreset(preset.id)} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-transparent px-4 py-2 text-sm text-zinc-400 transition hover:border-red-400/30 hover:text-red-200"><Trash2 className="size-4" />Delete</button>
                 </div>
               </div>
             ))}
@@ -833,65 +721,28 @@ export default function MarginGapPage() {
         </Surface>
 
         <Surface>
-          <SectionHeading
-            eyebrow="Shareable state"
-            title="URL-synced analytical context"
-            description="Teams can bookmark or pass around a precise slice of the report without reconstructing filters by hand. Ingredient focus remains encoded in the query string as well."
-          />
+          <SectionHeading eyebrow="Shareable state" title="URL-synced analytical context" description="Teams can bookmark or pass around a precise slice of the report without reconstructing filters by hand. Ingredient focus remains encoded in the query string as well." />
           <div className="mt-6 grid gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
-              <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Location</p>
-              <p className="mt-2 text-lg font-semibold text-white">{filters.location}</p>
-            </div>
-            <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
-              <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Date window</p>
-              <p className="mt-2 text-lg font-semibold text-white">{filters.dateFrom} → {filters.dateTo}</p>
-            </div>
-            <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
-              <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Focused ingredient</p>
-              <p className="mt-2 text-lg font-semibold text-white">{drilldownResponse.data.ingredient}</p>
-            </div>
+            <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4"><p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Location</p><p className="mt-2 text-lg font-semibold text-white">{filters.location}</p></div>
+            <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4"><p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Date window</p><p className="mt-2 text-lg font-semibold text-white">{filters.dateFrom} → {filters.dateTo}</p></div>
+            <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4"><p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Focused ingredient</p><p className="mt-2 text-lg font-semibold text-white">{drilldownResponse.data.ingredient}</p></div>
           </div>
         </Surface>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.18fr_0.82fr]">
         <Surface>
-          <SectionHeading
-            eyebrow="Variance ledger"
-            title="Actual versus theoretical cost by ingredient"
-            description="Click any row to load the right-hand drill-down. The most convincing story in the demo remains the mozzarella contract breach because the benchmark overlay stays calm while actual cost spikes."
-          />
+          <SectionHeading eyebrow="Variance ledger" title="Actual versus theoretical cost by ingredient" description="Click any row to load the right-hand drill-down. Every row comes from the active source mode; LIVE never substitutes repository fixture rows." />
           <div className="mt-6 overflow-hidden rounded-[28px] border border-white/8">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-white/8 text-left">
-                <thead className="bg-white/[0.03]">
-                  <tr className="text-xs uppercase tracking-[0.24em] text-zinc-500">
-                    <th className="px-4 py-3 font-medium">Ingredient</th>
-                    <th className="px-4 py-3 font-medium">Location</th>
-                    <th className="px-4 py-3 font-medium">Actual</th>
-                    <th className="px-4 py-3 font-medium">Theory</th>
-                    <th className="px-4 py-3 font-medium">Gap</th>
-                    <th className="px-4 py-3 font-medium">Benchmark</th>
-                    <th className="px-4 py-3 font-medium">Issue</th>
-                  </tr>
-                </thead>
+                <thead className="bg-white/[0.03]"><tr className="text-xs uppercase tracking-[0.24em] text-zinc-500"><th className="px-4 py-3 font-medium">Ingredient</th><th className="px-4 py-3 font-medium">Location</th><th className="px-4 py-3 font-medium">Actual</th><th className="px-4 py-3 font-medium">Theory</th><th className="px-4 py-3 font-medium">Gap</th><th className="px-4 py-3 font-medium">Benchmark</th><th className="px-4 py-3 font-medium">Issue</th></tr></thead>
                 <tbody className="divide-y divide-white/6 bg-black/10">
                   {marginResponse.data.rows.map((row) => {
                     const isActive = activeId === row.ingredientId;
-
                     return (
-                      <tr
-                        key={row.ingredientId}
-                        onClick={() => updateSearch({ ingredientId: row.ingredientId }, { replace: false })}
-                        className={`cursor-pointer transition hover:bg-white/[0.04] ${isActive ? 'bg-emerald-400/8' : ''}`}
-                      >
-                        <td className="px-4 py-4">
-                          <div>
-                            <p className="font-medium text-white">{row.ingredient}</p>
-                            <p className="mt-1 text-xs text-zinc-500">{row.category} · {row.vendor}</p>
-                          </div>
-                        </td>
+                      <tr key={row.ingredientId} onClick={() => updateSearch({ ingredientId: row.ingredientId }, { replace: false })} className={`cursor-pointer transition hover:bg-white/[0.04] ${isActive ? 'bg-emerald-400/8' : ''}`}>
+                        <td className="px-4 py-4"><div><p className="font-medium text-white">{row.ingredient}</p><p className="mt-1 text-xs text-zinc-500">{row.category} · {row.vendor}</p></div></td>
                         <td className="px-4 py-4 text-sm text-zinc-300">{row.location}</td>
                         <td className="px-4 py-4 font-mono text-sm text-white">${row.actualCost.toFixed(2)}</td>
                         <td className="px-4 py-4 font-mono text-sm text-zinc-300">${row.theoreticalCost.toFixed(2)}</td>
@@ -909,58 +760,19 @@ export default function MarginGapPage() {
 
         <div className="space-y-6">
           <Surface>
-            <SectionHeading
-              eyebrow="Overlay"
-              title="Benchmark context"
-              description="This overlay keeps the operator focused on outliers that are materially beyond portfolio and peer ranges."
-            />
-            <div className="mt-6 h-64">
-              <DonutChart
-                className="mx-auto h-60"
-                data={overlayData}
-                category="value"
-                index="name"
-                colors={['rose', 'cyan', 'emerald']}
-                valueFormatter={(value) => `${value} pts`}
-              />
-            </div>
+            <SectionHeading eyebrow="Overlay" title="Benchmark context" description="This overlay keeps the operator focused on outliers that are materially beyond portfolio and peer ranges." />
+            <div className="mt-6 h-64"><DonutChart className="mx-auto h-60" data={overlayData} category="value" index="name" colors={['rose', 'cyan', 'emerald']} valueFormatter={(value) => `${value} pts`} /></div>
           </Surface>
 
-          {drilldownResponse.loading ? (
-            <LoadingPanel label="Loading ingredient drill-down…" />
-          ) : (
+          {drilldownResponse.loading ? <LoadingPanel label="Loading ingredient drill-down…" /> : (
             <Surface>
-              <SectionHeading
-                eyebrow="Drill-down"
-                title={drilldownResponse.data.ingredient}
-                description={drilldownResponse.data.story}
-              />
+              <SectionHeading eyebrow="Drill-down" title={drilldownResponse.data.ingredient} description={drilldownResponse.data.story} />
               <div className="mt-6 grid gap-3 md:grid-cols-3">
-                <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
-                  <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Invoice delta</p>
-                  <p className="mt-2 font-mono text-xl text-red-300">{drilldownResponse.data.invoiceDelta}</p>
-                </div>
-                <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
-                  <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Yield delta</p>
-                  <p className="mt-2 font-mono text-xl text-amber-200">{drilldownResponse.data.yieldDelta}</p>
-                </div>
-                <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
-                  <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Benchmark delta</p>
-                  <p className="mt-2 font-mono text-xl text-cyan-200">{drilldownResponse.data.benchmarkDelta}</p>
-                </div>
+                <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4"><p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Invoice delta</p><p className="mt-2 font-mono text-xl text-red-300">{drilldownResponse.data.invoiceDelta}</p></div>
+                <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4"><p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Yield delta</p><p className="mt-2 font-mono text-xl text-amber-200">{drilldownResponse.data.yieldDelta}</p></div>
+                <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4"><p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Benchmark delta</p><p className="mt-2 font-mono text-xl text-cyan-200">{drilldownResponse.data.benchmarkDelta}</p></div>
               </div>
-              <div className="mt-6 h-64">
-                <BarChart
-                  className="h-64"
-                  data={drilldownResponse.data.events}
-                  index="label"
-                  categories={['value']}
-                  colors={['emerald']}
-                  showLegend={false}
-                  valueFormatter={(value) => `${value}`}
-                  yAxisWidth={56}
-                />
-              </div>
+              <div className="mt-6 h-64"><BarChart className="h-64" data={drilldownResponse.data.events} index="label" categories={['value']} colors={['emerald']} showLegend={false} valueFormatter={(value) => `${value}`} yAxisWidth={56} /></div>
             </Surface>
           )}
         </div>

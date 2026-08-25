@@ -21,9 +21,7 @@ function ensureLogDir() {
 
 function trimLogFile(logPath: string, maxSize: number) {
   try {
-    if (!fs.existsSync(logPath) || fs.statSync(logPath).size <= maxSize) {
-      return;
-    }
+    if (!fs.existsSync(logPath) || fs.statSync(logPath).size <= maxSize) return;
 
     const lines = fs.readFileSync(logPath, 'utf-8').split('\n');
     const keptLines: string[] = [];
@@ -38,7 +36,7 @@ function trimLogFile(logPath: string, maxSize: number) {
 
     fs.writeFileSync(logPath, keptLines.join('\n'), 'utf-8');
   } catch {
-    // ignore trim errors
+    // Development diagnostics must never break the application.
   }
 }
 
@@ -56,16 +54,12 @@ function vitePluginManusDebugCollector(): Plugin {
   return {
     name: 'manus-debug-collector',
     transformIndexHtml(html) {
-      if (process.env.NODE_ENV === 'production') return html;
       return {
         html,
         tags: [
           {
             tag: 'script',
-            attrs: {
-              src: '/__manus__/debug-collector.js',
-              defer: true,
-            },
+            attrs: { src: '/__manus__/debug-collector.js', defer: true },
             injectTo: 'head',
           },
         ],
@@ -111,16 +105,16 @@ function vitePluginManusDebugCollector(): Plugin {
   };
 }
 
-const plugins = [
-  react(),
-  tailwindcss(),
-  jsxLocPlugin(),
-  vitePluginManusRuntime(),
-  vitePluginManusDebugCollector(),
-];
+export function hostGraphPlugins(command: 'serve' | 'build'): Plugin[] {
+  const plugins: Plugin[] = [react(), tailwindcss()];
+  if (command === 'serve') {
+    plugins.push(jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector());
+  }
+  return plugins;
+}
 
-export default defineConfig({
-  plugins,
+export default defineConfig(({ command }) => ({
+  plugins: hostGraphPlugins(command),
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, 'client', 'src'),
@@ -176,4 +170,4 @@ export default defineConfig({
       deny: ['**/.*'],
     },
   },
-});
+}));

@@ -14,17 +14,21 @@ test('approved HostGraph command-center interface is present', () => {
   }
 });
 
-test('review UI distinguishes sourced fixture values from unavailable metrics', () => {
+test('review UI distinguishes sourced fixture values from unavailable live metrics', () => {
   assert.match(dashboard, /Not modeled/);
   assert.match(dashboard, /Historical margin series is not supplied/);
-  assert.match(dashboard, /Synthetic review fixtures/);
+  assert.match(dashboard, /Synthetic demo data/);
   assert.match(dashboard, /marginGapData/);
+  assert.match(dashboard, /No synthetic substitution/);
   assert.doesNotMatch(dashboard, /const marginTrend\s*=/);
   assert.doesNotMatch(dashboard, /value="28\.4%"/);
 });
 
-test('review shell does not present a fabricated named operator', () => {
+test('review shell does not present a fabricated named operator or a fixed source mode', () => {
   assert.match(shell, /Review Workspace/);
-  assert.match(shell, /Synthetic data mode/);
+  assert.match(shell, /configuredHostGraphMode/);
+  assert.match(shell, /Demo data mode/);
+  assert.match(shell, /Live data mode/);
+  assert.doesNotMatch(shell, /Synthetic data mode/);
   assert.doesNotMatch(shell, /Alex Morgan/);
 });

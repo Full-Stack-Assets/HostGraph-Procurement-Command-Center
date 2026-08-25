@@ -33,8 +33,20 @@ jobs:
       - name: Interface contract
         run: node --test tests/interface-rebuild.test.mjs
 
+      - name: Unit and contract tests
+        run: pnpm test:unit
+
       - name: Type check
         run: pnpm check
 
-      - name: Build frontend + server bundle
-        run: pnpm build
+      - name: Build production DEMO artifact
+        run: VITE_HOSTGRAPH_MODE=DEMO pnpm build
+
+      - name: Production source boundary
+        run: pnpm check:boundary
+
+      - name: Bundle budget
+        run: pnpm check:bundle
+
+      - name: Production dependency audit
+        run: pnpm audit:prod

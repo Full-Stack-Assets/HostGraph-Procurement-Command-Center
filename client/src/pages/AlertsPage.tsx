@@ -4,12 +4,12 @@
 import { useCallback } from 'react';
 import { api } from '@/services/api';
 import { alertsData } from '@/data/mockData';
-import { useFetch } from '@/hooks/useFetch';
+import { useHostGraphData } from '@/hooks/useHostGraphData';
 import { HeroPanel, LoadingPanel, PageStateBanner, SectionHeading, SeverityBadge, Surface } from '@/components/dashboard-primitives';
 
 export default function AlertsPage() {
   const fetchAlerts = useCallback(() => api.getAlerts(), []);
-  const { data, loading, error, usingFallback } = useFetch(fetchAlerts, { fallbackData: alertsData });
+  const { data, loading, error, usingFallback } = useHostGraphData(fetchAlerts, { fallbackData: alertsData });
 
   if (loading) return <LoadingPanel label="Syncing active alert feed…" />;
 

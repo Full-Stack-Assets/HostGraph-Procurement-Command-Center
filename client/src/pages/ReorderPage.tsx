@@ -4,7 +4,7 @@
 import { useCallback } from 'react';
 import { api } from '@/services/api';
 import { reorderData } from '@/data/mockData';
-import { useFetch } from '@/hooks/useFetch';
+import { useHostGraphData } from '@/hooks/useHostGraphData';
 import {
   LoadingPanel,
   PageStateBanner,
@@ -15,7 +15,7 @@ import {
 
 export default function ReorderPage() {
   const fetchReorders = useCallback(() => api.getReorderSuggestions(), []);
-  const { data, loading, error, usingFallback } = useFetch(fetchReorders, { fallbackData: reorderData });
+  const { data, loading, error, usingFallback } = useHostGraphData(fetchReorders, { fallbackData: reorderData });
 
   if (loading) return <LoadingPanel label="Calculating reorder queue…" />;
 
@@ -103,7 +103,7 @@ export default function ReorderPage() {
                     <SeverityBadge severity={ratio < 45 ? 'critical' : ratio < 70 ? 'watch' : 'stable'} />
                   </div>
                   <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/8">
-                    <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300" style={{ width: `%` }} />
+                    <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300" style={{ width: `${ratio}%` }} />
                   </div>
                   <div className="mt-3 flex items-center justify-between font-mono text-xs uppercase tracking-[0.24em] text-zinc-500">
                     <span>On hand {item.onHand}</span>

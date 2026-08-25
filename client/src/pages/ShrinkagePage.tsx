@@ -5,7 +5,7 @@ import { BarChart } from '@tremor/react';
 import { useCallback } from 'react';
 import { api } from '@/services/api';
 import { shrinkageData } from '@/data/mockData';
-import { useFetch } from '@/hooks/useFetch';
+import { useHostGraphData } from '@/hooks/useHostGraphData';
 import {
   formatCurrencyCompact,
   HeroPanel,
@@ -18,7 +18,7 @@ import {
 
 export default function ShrinkagePage() {
   const fetchShrinkage = useCallback(() => api.getShrinkageReport(), []);
-  const { data, loading, error, usingFallback } = useFetch(fetchShrinkage, { fallbackData: shrinkageData });
+  const { data, loading, error, usingFallback } = useHostGraphData(fetchShrinkage, { fallbackData: shrinkageData });
 
   if (loading) return <LoadingPanel label="Loading shrinkage and yield report…" />;
 
