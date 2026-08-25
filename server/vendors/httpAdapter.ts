@@ -41,95 +41,41 @@ export class AuthorizedHttpVendorAdapter implements VendorAdapter {
     return headers;
   }
 
-  async verifyLiveRead(context: VendorReadContext): Promise<VendorReadObservation> {
-    const requestedAt = new Date().toISOString();
-    const correlationId = randomUUID();
+  private async fetchOnce(correlationId: string) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-
     try {
-      const response = await fetch(this.buildUrl(), {
+      return await fetch(this.buildUrl(), {
         method: 'GET',
         headers: this.buildHeaders(correlationId),
         signal: controller.signal,
       });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
 
-      const respondedAt = new Date().toISOString();
-      if (!response.ok) {
-        return {
-          result: 'FAIL',
-          authorizationBasis: this.config.authorizationBasis,
-          operationId: this.config.readPath,
-          requestedAt,
-          respondedAt,
-          sourceRecordIds: [],
-          rawPayload: null,
-          normalizedRecords: [],
-          schemaVersion: this.normalizer.schemaVersion,
-          freshAt: respondedAt,
-          errorClass: `HTTP_${response.status}`,
-          unsupportedFields: this.normalizer.unsupportedFields ?? [],
-        };
+  async verifyLiveRead(context: VendorReadContext): Promise<VendorReadObservation> {
+    const requestedAt = new Date().toISOString();
+    const correlationId = randomUUID();
+    let response: Response | null = null;
+    let lastNetworkError: unknown = null;
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        response = await this.fetchOnce(correlationId);
+        // Only idempotent GET failures that may be transient are retried.
+        if (response.status < 500 || attempt === 1) break;
+      } catch (error) {
+        lastNetworkError = error;
+        if (attempt === 1) break;
       }
+    }
 
-      const rawPayload: unknown = await response.json();
-      const normalizedRecords = this.normalizer
-        .normalize(rawPayload, context)
-        .map((record) => VendorCommercialRecordSchema.parse(record));
+    const respondedAt = new Date().toISOString();
 
-      if (normalizedRecords.length === 0) {
-        return {
-          result: 'FAIL',
-          authorizationBasis: this.config.authorizationBasis,
-          operationId: this.config.readPath,
-          requestedAt,
-          respondedAt,
-          sourceRecordIds: [],
-          rawPayload: null,
-          normalizedRecords: [],
-          schemaVersion: this.normalizer.schemaVersion,
-          freshAt: respondedAt,
-          errorClass: 'NO_ACCOUNT_SCOPED_COMMERCIAL_RECORDS',
-          unsupportedFields: this.normalizer.unsupportedFields ?? [],
-        };
-      }
-
-      for (const record of normalizedRecords) {
-        if (record.vendorId !== context.vendorId || record.accountRef !== context.accountRef) {
-          return {
-            result: 'FAIL',
-            authorizationBasis: this.config.authorizationBasis,
-            operationId: this.config.readPath,
-            requestedAt,
-            respondedAt,
-            sourceRecordIds: [],
-            rawPayload: null,
-            normalizedRecords: [],
-            schemaVersion: this.normalizer.schemaVersion,
-            freshAt: respondedAt,
-            errorClass: 'IDENTITY_MISMATCH',
-            unsupportedFields: this.normalizer.unsupportedFields ?? [],
-          };
-        }
-      }
-
-      return {
-        result: 'PASS',
-        authorizationBasis: this.config.authorizationBasis,
-        operationId: this.config.readPath,
-        requestedAt,
-        respondedAt,
-        sourceRecordIds: normalizedRecords.map((record) => record.sourceRecordId),
-        rawPayload,
-        normalizedRecords,
-        schemaVersion: this.normalizer.schemaVersion,
-        freshAt: respondedAt,
-        errorClass: null,
-        unsupportedFields: this.normalizer.unsupportedFields ?? [],
-      };
-    } catch (error) {
-      const respondedAt = new Date().toISOString();
-      const errorClass = error instanceof Error && error.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK_OR_SCHEMA_ERROR';
+    if (!response) {
+      const errorClass = lastNetworkError instanceof Error && lastNetworkError.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK_ERROR';
       return {
         result: 'FAIL',
         authorizationBasis: this.config.authorizationBasis,
@@ -144,8 +90,98 @@ export class AuthorizedHttpVendorAdapter implements VendorAdapter {
         errorClass,
         unsupportedFields: this.normalizer.unsupportedFields ?? [],
       };
-    } finally {
-      clearTimeout(timer);
     }
+
+    if (!response.ok) {
+      return {
+        result: 'FAIL',
+        authorizationBasis: this.config.authorizationBasis,
+        operationId: this.config.readPath,
+        requestedAt,
+        respondedAt,
+        sourceRecordIds: [],
+        rawPayload: null,
+        normalizedRecords: [],
+        schemaVersion: this.normalizer.schemaVersion,
+        freshAt: respondedAt,
+        errorClass: `HTTP_${response.status}`,
+        unsupportedFields: this.normalizer.unsupportedFields ?? [],
+      };
+    }
+
+    let rawPayload: unknown;
+    let normalizedRecords: VendorCommercialRecord[];
+    try {
+      rawPayload = await response.json();
+      normalizedRecords = this.normalizer
+        .normalize(rawPayload, context)
+        .map((record) => VendorCommercialRecordSchema.parse(record));
+    } catch {
+      return {
+        result: 'FAIL',
+        authorizationBasis: this.config.authorizationBasis,
+        operationId: this.config.readPath,
+        requestedAt,
+        respondedAt,
+        sourceRecordIds: [],
+        rawPayload: null,
+        normalizedRecords: [],
+        schemaVersion: this.normalizer.schemaVersion,
+        freshAt: respondedAt,
+        errorClass: 'SCHEMA_OR_NORMALIZATION_ERROR',
+        unsupportedFields: this.normalizer.unsupportedFields ?? [],
+      };
+    }
+
+    if (normalizedRecords.length === 0) {
+      return {
+        result: 'FAIL',
+        authorizationBasis: this.config.authorizationBasis,
+        operationId: this.config.readPath,
+        requestedAt,
+        respondedAt,
+        sourceRecordIds: [],
+        rawPayload: null,
+        normalizedRecords: [],
+        schemaVersion: this.normalizer.schemaVersion,
+        freshAt: respondedAt,
+        errorClass: 'NO_ACCOUNT_SCOPED_COMMERCIAL_RECORDS',
+        unsupportedFields: this.normalizer.unsupportedFields ?? [],
+      };
+    }
+
+    for (const record of normalizedRecords) {
+      if (record.vendorId !== context.vendorId || record.accountRef !== context.accountRef) {
+        return {
+          result: 'FAIL',
+          authorizationBasis: this.config.authorizationBasis,
+          operationId: this.config.readPath,
+          requestedAt,
+          respondedAt,
+          sourceRecordIds: [],
+          rawPayload: null,
+          normalizedRecords: [],
+          schemaVersion: this.normalizer.schemaVersion,
+          freshAt: respondedAt,
+          errorClass: 'IDENTITY_MISMATCH',
+          unsupportedFields: this.normalizer.unsupportedFields ?? [],
+        };
+      }
+    }
+
+    return {
+      result: 'PASS',
+      authorizationBasis: this.config.authorizationBasis,
+      operationId: this.config.readPath,
+      requestedAt,
+      respondedAt,
+      sourceRecordIds: normalizedRecords.map((record) => record.sourceRecordId),
+      rawPayload,
+      normalizedRecords,
+      schemaVersion: this.normalizer.schemaVersion,
+      freshAt: respondedAt,
+      errorClass: null,
+      unsupportedFields: this.normalizer.unsupportedFields ?? [],
+    };
   }
 }
