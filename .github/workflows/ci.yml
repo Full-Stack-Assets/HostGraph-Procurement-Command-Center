@@ -75,8 +75,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pnpm remove axios nanoid streamdown recharts
-          pnpm add express@4.22.2 react-router-dom@7.18.2
+          pnpm remove axios nanoid streamdown
+          pnpm add express@4.22.2 react-router-dom@7.18.2 recharts@2.15.4
           pnpm pkg set 'pnpm.overrides.path-to-regexp=0.1.13'
           pnpm pkg set 'pnpm.overrides.lodash=4.18.1'
           pnpm install --lockfile-only
