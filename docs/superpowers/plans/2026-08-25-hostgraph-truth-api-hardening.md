@@ -19,7 +19,7 @@
 - In development only, an omitted `VITE_HOSTGRAPH_MODE` may default to `DEMO`.
 - In a production build/runtime, missing or invalid `VITE_HOSTGRAPH_MODE` is a configuration failure; production must never silently default to DEMO.
 - `DEGRADED` is derived from failed/stale LIVE state and is never manually configured.
-- Analytics reads (dashboard, margin, reorder, vendor, shrinkage, benchmark, alerts) become stale after 5 minutes; invoice queue/job status becomes stale after 60 seconds.
+- Analytics reads become stale after 5 minutes; invoice queue/job status becomes stale after 60 seconds.
 - No vendor credentials, billing, production deployment, POS/accounting writes, or external vendor actions are introduced by this plan.
 
 ---
@@ -27,7 +27,7 @@
 ## File structure
 - Create `shared/contracts/core.ts` for truth mode, evidence state, source metadata, and freshness contracts.
 - Create `shared/contracts/analytics.ts` for Zod runtime schemas for every existing API response.
-- Create `client/src/lib/runtimeMode.ts`, `client/src/lib/dataReadState.ts`, and `client/src/hooks/useHostGraphData.ts`.
+- Create `client/src/lib/runtimeMode.ts`, `client/src/lib/freshnessPolicy.ts`, `client/src/lib/dataReadState.ts`, and `client/src/hooks/useHostGraphData.ts`.
 - Replace unchecked request casting in `client/src/services/api.ts`.
 - Migrate all six route pages and source-state primitives.
 - Add Vitest/Testing Library coverage under `tests/`.
@@ -40,7 +40,7 @@
 - Create: `tests/core-contracts.test.ts`
 
 **Interfaces:**
-- Produces: `pnpm test:unit` for `tests/**/*.test.ts` and `tests/**/*.test.tsx`.
+- Produces: `pnpm test:unit`; `.test.ts` runs in Node and `.test.tsx` runs in jsdom.
 
 - [ ] **Step 1: Write the red smoke test**
 
@@ -64,7 +64,7 @@ pnpm exec vitest run tests/core-contracts.test.ts
 
 Expected: FAIL because `@shared/contracts/core` does not exist.
 
-- [ ] **Step 3: Add the test dependencies and scripts**
+- [ ] **Step 3: Add test dependencies and scripts**
 
 ```bash
 pnpm add -D @testing-library/react @testing-library/jest-dom jsdom
@@ -79,7 +79,26 @@ Add:
 }
 ```
 
-Create `vitest.config.ts` with `@` -> `client/src` and `@shared` -> `shared` aliases.
+Create `vitest.config.ts`:
+
+```ts
+import path from 'node:path';
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      '@': path.resolve(import.meta.dirname, 'client/src'),
+      '@shared': path.resolve(import.meta.dirname, 'shared'),
+    },
+  },
+  test: {
+    include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
+    environment: 'node',
+    environmentMatchGlobs: [['tests/**/*.test.tsx', 'jsdom']],
+  },
+});
+```
 
 - [ ] **Step 4: Commit**
 
@@ -172,7 +191,7 @@ expect(() => MarginGapResponseSchema.parse({
 
 - [ ] **Step 2: Implement endpoint schemas and infer types from them**
 
-Update `mockData.ts` so fixtures are compile-time checked against the shared inferred types instead of defining a second interface universe.
+Update `mockData.ts` so fixtures are compile-time checked against shared inferred types instead of defining a second interface universe.
 
 - [ ] **Step 3: Run and commit**
 
@@ -267,13 +286,7 @@ export const FRESHNESS_MS = {
 
 - [ ] **Step 3: Test state transitions**
 
-Required cases:
-- DEMO initializes fixture and never calls live fetcher;
-- LIVE successful read stores verified live data;
-- LIVE failure with no prior snapshot -> DEGRADED, `data: null`;
-- LIVE failure with prior verified snapshot -> DEGRADED with only that snapshot;
-- stale snapshot -> DEGRADED;
-- no failure/stale transition can inject demo fixtures.
+Required cases: DEMO initializes fixture and never calls live fetcher; LIVE success stores verified live data; LIVE failure with no snapshot -> DEGRADED/`data: null`; LIVE failure with prior verified snapshot -> DEGRADED with only that snapshot; stale snapshot -> DEGRADED; no failure/stale transition can inject demo fixtures.
 
 - [ ] **Step 4: Implement hook**
 
@@ -325,14 +338,11 @@ Assert no page retains `usingFallback` logic and a LIVE 503 produces `DEGRADED`/
 { mode: 'DEMO' | 'LIVE' | 'DEGRADED'; error?: string | null; fetchedAt?: string | null }
 ```
 
-Copy:
-- DEMO: `Synthetic demo data`.
-- LIVE: `Validated live data`.
-- DEGRADED: `Live source degraded — no synthetic substitution`.
+Copy: DEMO `Synthetic demo data`; LIVE `Validated live data`; DEGRADED `Live source degraded — no synthetic substitution`.
 
 - [ ] **Step 3: Migrate pages and shell**
 
-If required LIVE data has no verified snapshot, render an unavailable/error state. Replace the hard-coded `Synthetic data mode` workspace label with actual truth state.
+If required LIVE data has no verified snapshot, render an unavailable/error state. Replace hard-coded `Synthetic data mode` with actual truth state.
 
 - [ ] **Step 4: Remove legacy hook only after this returns zero imports**
 
@@ -340,13 +350,13 @@ If required LIVE data has no verified snapshot, render an unavailable/error stat
 rg "useFetch" client/src
 ```
 
-- [ ] **Step 5: Run the complete Plan 1 gate**
+- [ ] **Step 5: Run complete Plan 1 gate**
 
 ```bash
 pnpm test:unit
 node --test tests/interface-rebuild.test.mjs
 pnpm check
-pnpm build
+VITE_HOSTGRAPH_MODE=DEMO pnpm build
 ```
 
 - [ ] **Step 6: Commit**
@@ -358,4 +368,4 @@ git commit -m "feat: enforce HostGraph source-honest runtime modes"
 
 ## Plan 1 exit gate
 
-A simulated LIVE outage must produce DEGRADED without fixture substitution; stale LIVE data must be visibly degraded; production cannot default to DEMO when configuration is missing; every current endpoint response is runtime-validated; all six routes use the new truth-aware state; and the existing source-honesty interface test remains green.
+A simulated LIVE outage produces DEGRADED without fixture substitution; stale LIVE data is visibly degraded; production cannot default to DEMO when configuration is missing; every current endpoint response is runtime-validated; all six routes use the new truth-aware state; and the existing source-honesty interface test remains green.
