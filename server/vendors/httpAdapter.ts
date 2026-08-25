@@ -26,10 +26,19 @@ export class AuthorizedHttpVendorAdapter implements VendorAdapter {
     return new URL(this.config.readPath, base).toString();
   }
 
-  private authHeaders() {
-    return this.config.authKind === 'BEARER'
-      ? { Authorization: `Bearer ${this.config.token}` }
-      : { [this.config.authHeader]: this.config.token };
+  private buildHeaders(correlationId: string) {
+    const headers = new Headers();
+    headers.set('Accept', 'application/json');
+    headers.set('X-HostGraph-Correlation-Id', correlationId);
+    headers.set('X-HostGraph-Account-Ref', this.config.accountId);
+
+    if (this.config.authKind === 'BEARER') {
+      headers.set('Authorization', `Bearer ${this.config.token}`);
+    } else {
+      headers.set(this.config.authHeader, this.config.token);
+    }
+
+    return headers;
   }
 
   async verifyLiveRead(context: VendorReadContext): Promise<VendorReadObservation> {
@@ -41,12 +50,7 @@ export class AuthorizedHttpVendorAdapter implements VendorAdapter {
     try {
       const response = await fetch(this.buildUrl(), {
         method: 'GET',
-        headers: {
-          Accept: 'application/json',
-          'X-HostGraph-Correlation-Id': correlationId,
-          'X-HostGraph-Account-Ref': this.config.accountId,
-          ...this.authHeaders(),
-        },
+        headers: this.buildHeaders(correlationId),
         signal: controller.signal,
       });
 
