@@ -1,3 +1,4 @@
+import React from 'react';
 import type { TruthMode } from '@shared/contracts/core';
 import { Surface } from '@/components/dashboard-primitives';
 
