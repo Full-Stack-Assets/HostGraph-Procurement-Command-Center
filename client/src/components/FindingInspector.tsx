@@ -1,3 +1,4 @@
+import React from 'react';
 import type { TruthMode } from '@shared/contracts/core';
 import type { Finding } from '@shared/contracts/findings';
 import { Surface } from '@/components/dashboard-primitives';
