@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
@@ -96,5 +97,16 @@ describe('FindingInspector', () => {
     expect(html).toContain('Evidence record unavailable');
     expect(html).toContain('Current margin API does not yet expose a source-complete Finding record.');
     expect(html).not.toContain('Detected variance');
+  });
+});
+
+describe('Margin Gap evidence workflow integration', () => {
+  it('places the data status rail and evidence inspector in the operator workflow', () => {
+    const source = readFileSync(new URL('../client/src/pages/MarginGapPage.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain("import { DataStatusRail } from '@/components/DataStatusRail';");
+    expect(source).toContain("import { FindingInspector } from '@/components/FindingInspector';");
+    expect(source).toContain('<DataStatusRail');
+    expect(source).toContain('<FindingInspector');
   });
 });
