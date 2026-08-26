@@ -16,6 +16,9 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import type { Finding } from '@shared/contracts/findings';
+import { DataStatusRail } from '@/components/DataStatusRail';
+import { FindingInspector } from '@/components/FindingInspector';
 import {
   ingestionQueueData,
   marginDrilldowns,
@@ -509,6 +512,36 @@ export default function MarginGapPage() {
   });
 
   const activeId = searchParams.get('ingredientId') || marginResponse.data.rows[0]?.ingredientId || '';
+  const activeRow = marginResponse.data.rows.find((row) => row.ingredientId === activeId) ?? null;
+
+  const activeFinding = useMemo<Finding | null>(() => {
+    if (marginResponse.mode !== 'DEMO' || !activeRow) return null;
+
+    return {
+      id: `demo-${activeRow.ingredientId}`,
+      accountId: 'demo-boston-portfolio',
+      locationId: activeRow.location,
+      vendorId: activeRow.vendor,
+      sourceRecordIds: [`fixture:${activeRow.ingredientId}`],
+      sourcePeriod: { from: filters.dateFrom, to: filters.dateTo },
+      observedAmount: activeRow.actualCost,
+      calculatedVariance: activeRow.actualCost - activeRow.theoreticalCost,
+      calculationMethod: 'synthetic-actual-minus-theoretical-unit-cost',
+      calculationVersion: 'demo-v1',
+      confidence: 0,
+      evidenceState: 'DETECTED',
+      reviewerState: 'UNREVIEWED',
+      createdAt: `${filters.dateFrom}T00:00:00.000Z`,
+      updatedAt: `${filters.dateTo}T00:00:00.000Z`,
+      provenance: [
+        {
+          sourceSystem: 'HostGraph synthetic fixture',
+          sourceRecordId: `fixture:${activeRow.ingredientId}`,
+          locator: `client/src/data/mockData.ts#${activeRow.ingredientId}`,
+        },
+      ],
+    };
+  }, [activeRow, filters.dateFrom, filters.dateTo, marginResponse.mode]);
 
   useEffect(() => {
     if (!marginResponse.data.rows.length) return;
@@ -690,6 +723,15 @@ export default function MarginGapPage() {
 
       <PageStateBanner usingFallback={marginResponse.usingFallback || drilldownResponse.usingFallback} error={marginResponse.error || drilldownResponse.error} />
 
+      <DataStatusRail
+        mode={marginResponse.mode}
+        fetchedAt={marginResponse.fetchedAt}
+        sourceCoverage={null}
+        invoicesProcessed={null}
+        invoicesAwaitingReview={null}
+        dataExceptions={null}
+      />
+
       <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         <InvoiceUploadPanel location={filters.location} onQueued={handleQueueItem} enabled={configuredHostGraphMode === 'LIVE'} />
         <IngestionQueuePanel items={sortedQueueItems} liveState={queueLiveState} syncError={queueSyncError} lastSyncedAt={queueLastSyncedAt} refreshing={queueRefreshing} onRefresh={pollQueue} />
@@ -775,6 +817,16 @@ export default function MarginGapPage() {
               <div className="mt-6 h-64"><BarChart className="h-64" data={drilldownResponse.data.events} index="label" categories={['value']} colors={['emerald']} showLegend={false} valueFormatter={(value) => `${value}`} yAxisWidth={56} /></div>
             </Surface>
           )}
+
+          <FindingInspector
+            mode={marginResponse.mode}
+            finding={activeFinding}
+            unavailableReason={
+              marginResponse.mode === 'DEMO'
+                ? 'No synthetic finding is available for the current row.'
+                : 'Current margin API does not yet expose a source-complete Finding record.'
+            }
+          />
         </div>
       </section>
     </div>
