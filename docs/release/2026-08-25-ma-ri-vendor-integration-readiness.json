@@ -1,0 +1,202 @@
+{
+  "schemaVersion": "hostgraph-vendor-readiness-preflight-v1",
+  "checkedAt": "2026-08-25T21:52:00-04:00",
+  "repositoryBase": "b961736341508839e556097143f4677eae03f497",
+  "scope": "RESEARCH_AND_CONFIGURATION_PREFLIGHT_ONLY",
+  "liveCallsPerformed": false,
+  "credentialsUsed": false,
+  "releaseVerdict": "BLOCKED",
+  "summary": {
+    "requiredVendors": 10,
+    "regionallyVerified": 10,
+    "machinePathIdentified": 4,
+    "authorizedConfigProven": 0,
+    "liveTestReady": 0,
+    "threeReadVerified": 0,
+    "reconciled": 0
+  },
+  "vendors": [
+    {
+      "vendorId": "sysco-boston",
+      "vendorName": "Sysco Boston",
+      "category": "FOOD",
+      "region": "MA/RI",
+      "preflightState": "AUTH_REQUIRED",
+      "machinePathClass": "OFFICIAL_API_PORTAL",
+      "machinePathIdentified": true,
+      "authorizedConfigProven": false,
+      "liveTestReady": false,
+      "observableData": ["API_PROGRAM_EXISTS"],
+      "blockers": ["API_PRODUCT_ENTITLEMENT_UNVERIFIED", "CUSTOMER_ACCOUNT_AUTHORIZATION_UNVERIFIED", "CREDENTIALS_UNVERIFIED", "RESPONSE_CONTRACT_UNVERIFIED", "VENDOR_NORMALIZER_NOT_PROVEN_FOR_LIVE_SOURCE"],
+      "sources": ["https://apic-devportal.sysco.com/", "https://www.sysco.com/contact/contact/our-locations"]
+    },
+    {
+      "vendorId": "us-foods",
+      "vendorName": "US Foods",
+      "category": "FOOD",
+      "region": "MA/RI",
+      "preflightState": "AUTH_REQUIRED",
+      "machinePathClass": "OFFICIAL_INTEGRATION_POLICY_PLUS_VENDOR_COORDINATED_EDI",
+      "machinePathIdentified": true,
+      "authorizedConfigProven": false,
+      "liveTestReady": false,
+      "observableData": ["ORDER_GUIDES", "ORDER_TRACKING", "PAST_PURCHASES", "CUSTOMER_REPORTING", "EDI_INVOICE_CANDIDATE"],
+      "blockers": ["US_FOODS_OR_PARTNER_AUTHORIZATION_UNVERIFIED", "ACCOUNT_IDS_UNVERIFIED", "CREDENTIALS_UNVERIFIED", "MACHINE_CONTRACT_UNVERIFIED", "VENDOR_NORMALIZER_NOT_PROVEN_FOR_LIVE_SOURCE"],
+      "sources": ["https://www.usfoods.com/legal/policies/customer", "https://www.usfoods.com/how-we-deliver/next-day-restaurant-delivery.html", "https://help.marginedge.com/hc/en-us/articles/4401855977875-Request-Your-Digital-EDI-Invoices"]
+    },
+    {
+      "vendorId": "performance-foodservice-boston",
+      "vendorName": "Performance Foodservice Boston",
+      "category": "FOOD",
+      "region": "MA/RI",
+      "preflightState": "AUTH_REQUIRED",
+      "machinePathClass": "OFFICIAL_EDI_AND_SYSTEM_INTEGRATION",
+      "machinePathIdentified": true,
+      "authorizedConfigProven": false,
+      "liveTestReady": false,
+      "observableData": ["PRODUCTS", "ORDERS", "DELIVERIES", "INVOICE_LINE_DETAIL", "PROOF_OF_DELIVERY", "PAYMENT_HISTORY", "SPEND_TRENDS", "EDI_ORDER_AND_INVOICE_PATHS"],
+      "blockers": ["HOSTGRAPH_INTEGRATION_ROUTE_NOT_APPROVED", "ACCOUNT_AUTHORIZATION_UNVERIFIED", "CREDENTIALS_UNVERIFIED", "RESPONSE_SCHEMA_UNVERIFIED", "VENDOR_NORMALIZER_NOT_PROVEN_FOR_LIVE_SOURCE"],
+      "sources": ["https://www.performancefoodservice.com/Your-Operation/CustomerFirst", "https://www.performancefoodservice.com/Your-Operation/Restaurant-Operations/Recipe-Costing", "https://www.performancefoodservice.com/Your-Operation/Restaurant-Operations", "https://www.performancefoodservice.com/our-locations/boston/"]
+    },
+    {
+      "vendorId": "baldor-boston",
+      "vendorName": "Baldor Specialty Foods Boston",
+      "category": "FOOD",
+      "region": "MA/RI",
+      "preflightState": "AUTH_REQUIRED",
+      "machinePathClass": "VENDOR_COORDINATED_EDI_CANDIDATE",
+      "machinePathIdentified": true,
+      "authorizedConfigProven": false,
+      "liveTestReady": false,
+      "observableData": ["ACCOUNT_PRICING", "AVAILABILITY", "INVOICES", "PAYMENT_HISTORY", "USAGE_REPORTS", "CREDITS", "ORDER_HISTORY", "DELIVERY_STATUS"],
+      "blockers": ["VENDOR_OR_PARTNER_FEED_NOT_AUTHORIZED_FOR_HOSTGRAPH", "ACCOUNT_AUTHORIZATION_UNVERIFIED", "CREDENTIALS_UNVERIFIED", "SOURCE_SCHEMA_UNVERIFIED", "VENDOR_NORMALIZER_NOT_PROVEN_FOR_LIVE_SOURCE"],
+      "sources": ["https://www.baldorfood.com/services/online-ordering", "https://help.baldorfood.com/hc/en-us/articles/360038199053-How-to-navigate-my-business-user-profile", "https://help.baldorfood.com/hc/en-us/articles/360024349313-How-can-I-request-a-pickup-or-credit", "https://help.marginedge.com/hc/en-us/articles/4401855977875-Request-Your-Digital-EDI-Invoices"]
+    },
+    {
+      "vendorId": "costa-fruit-produce",
+      "vendorName": "Costa Fruit & Produce",
+      "category": "FOOD",
+      "region": "MA/RI",
+      "preflightState": "BLOCKED",
+      "machinePathClass": "NO_AUTHORIZED_MACHINE_PATH_IDENTIFIED",
+      "machinePathIdentified": false,
+      "authorizedConfigProven": false,
+      "liveTestReady": false,
+      "observableData": ["CONTRACT_PRICING_BUSINESS_CONCEPT", "INVOICE_LOCAL_PRODUCT_LABELING", "LOCAL_PURCHASE_REPORTING_ON_REQUEST"],
+      "blockers": ["NO_OFFICIAL_API_EDI_OR_VENDOR_AUTHORIZED_MACHINE_PATH_IDENTIFIED", "ACCOUNT_AUTHORIZATION_UNVERIFIED", "CREDENTIALS_UNVERIFIED", "SOURCE_SCHEMA_UNVERIFIED"],
+      "sources": ["https://www.freshideas.com/", "https://www.freshideas.com/contact-us/", "https://www.freshideas.com/become-a-customer/", "https://www.freshideas.com/our-products/local/", "https://www.freshideas.com/our-products/conventional-produce/"]
+    },
+    {
+      "vendorId": "martignetti",
+      "vendorName": "Martignetti Companies",
+      "category": "BEVERAGE",
+      "region": "MA/RI",
+      "preflightState": "BLOCKED",
+      "machinePathClass": "PORTAL_ONLY_FOR_CURRENT_PREFLIGHT",
+      "machinePathIdentified": false,
+      "authorizedConfigProven": false,
+      "liveTestReady": false,
+      "observableData": ["REAL_TIME_PORTFOLIO", "ACCOUNT_SPECIFIC_PRICING", "ORDERS", "INVOICES", "CREDITS", "PAYMENTS", "DELIVERY_AND_ACCOUNT_MANAGEMENT"],
+      "blockers": ["NO_PUBLIC_CUSTOMER_API_EDI_CONTRACT_IDENTIFIED", "PORTAL_AUTOMATION_PROHIBITED", "AUTHORIZED_AGGREGATOR_CONNECTION_UNVERIFIED", "ACCOUNT_AUTHORIZATION_UNVERIFIED"],
+      "sources": ["https://martignetti.com/", "https://martignetti.com/martignetti-massachusetts", "https://martignetti.com/blog/martignetti-companies-launches-martignetti-exchange-an-e-commerce-wholesale-ordering-solution"]
+    },
+    {
+      "vendorId": "southern-glazers-ma-ri",
+      "vendorName": "Southern Glazer's Beverage Company MA/RI",
+      "category": "BEVERAGE",
+      "region": "MA/RI",
+      "preflightState": "BLOCKED",
+      "machinePathClass": "PORTAL_ONLY_FOR_CURRENT_PREFLIGHT",
+      "machinePathIdentified": false,
+      "authorizedConfigProven": false,
+      "liveTestReady": false,
+      "observableData": ["ORDERS", "PRODUCT_DISCOVERY", "DEALS", "PAYMENTS", "TWO_YEAR_INVOICE_ACCESS"],
+      "blockers": ["NO_CURRENT_PUBLIC_CUSTOMER_MACHINE_API_EDI_CONTRACT_IDENTIFIED", "PORTAL_AUTOMATION_PROHIBITED", "AUTHORIZED_AGGREGATOR_CONNECTION_UNVERIFIED", "ACCOUNT_AUTHORIZATION_UNVERIFIED"],
+      "sources": ["https://www.southernglazers.com/become-a-customer/about-proof", "https://www.southernglazers.com/who-we-are/our-history", "https://www.southernglazers.com/become-a-customer/sign-up"]
+    },
+    {
+      "vendorId": "ms-walker",
+      "vendorName": "M.S. Walker",
+      "category": "BEVERAGE",
+      "region": "MA/RI",
+      "preflightState": "BLOCKED",
+      "machinePathClass": "NO_AUTHORIZED_MACHINE_PATH_IDENTIFIED",
+      "machinePathIdentified": false,
+      "authorizedConfigProven": false,
+      "liveTestReady": false,
+      "observableData": ["CUSTOMER_ACCOUNT_AND_CREDIT", "INVOICE_PAYMENT"],
+      "blockers": ["MA_ORDERING_CURRENTLY_DOCUMENTED_VIA_SALES_REP_OR_PHONE", "NO_PUBLIC_MA_RI_CUSTOMER_API_EDI_CONTRACT_IDENTIFIED", "ACCOUNT_SCOPED_MACHINE_DATA_UNVERIFIED"],
+      "sources": ["https://www.mswalker.com/regional-distribution/massachusetts/", "https://www.mswalker.com/contact-us/", "https://www.mswalker.com/resources/customer-services/"]
+    },
+    {
+      "vendorId": "mancini-beverage",
+      "vendorName": "Mancini Beverage",
+      "category": "BEVERAGE",
+      "region": "MA/RI",
+      "preflightState": "BLOCKED",
+      "machinePathClass": "NO_AUTHORIZED_MACHINE_PATH_IDENTIFIED",
+      "machinePathIdentified": false,
+      "authorizedConfigProven": false,
+      "liveTestReady": false,
+      "observableData": ["CUSTOMER_ONBOARDING", "CATALOG_RELATIONSHIP", "ELECTRONIC_INVOICE_PAYMENT"],
+      "blockers": ["NO_OFFICIAL_CUSTOMER_API_EDI_PATH_IDENTIFIED", "PAYMENTUS_PAYMENT_SURFACE_NOT_COMMERCIAL_DATA_API", "ACCOUNT_SCOPED_INVOICE_LINE_ACCESS_UNVERIFIED"],
+      "sources": ["https://www.mancinibeverage.com/", "https://www.mancinibeverage.com/contact/", "https://www.mancinibeverage.com/contact/paymyinvoice/"]
+    },
+    {
+      "vendorId": "sheehan-regional",
+      "vendorName": "Sheehan Family Companies regional network",
+      "category": "BEVERAGE",
+      "region": "MA/RI",
+      "preflightState": "BLOCKED",
+      "machinePathClass": "PORTAL_ONLY_FOR_CURRENT_PREFLIGHT",
+      "machinePathIdentified": false,
+      "authorizedConfigProven": false,
+      "liveTestReady": false,
+      "observableData": ["DEALS", "INVENTORY", "PRE_SALES", "PORTFOLIO", "PAYMENT_HISTORY", "INVOICE_HISTORY", "ORDERING", "REORDER_HISTORY"],
+      "blockers": ["NO_PUBLIC_SHEEHAN_CONNECT_VIP_MACHINE_API_EDI_CONTRACT_IDENTIFIED", "PORTAL_AUTOMATION_PROHIBITED", "AUTHORIZED_AGGREGATOR_CONNECTION_UNVERIFIED", "ACCOUNT_AUTHORIZATION_UNVERIFIED"],
+      "sources": ["https://www.craftbrewersguildma.com/craftmarp/", "https://www.lknifeandson.com/retailer/"]
+    }
+  ],
+  "candidateIntermediaries": [
+    {
+      "name": "MarginEdge Digital EDI",
+      "role": "FOOD_VENDOR_INVOICE_INTEGRATION_CANDIDATE",
+      "verifiedBaselineVendors": ["sysco-boston", "us-foods", "performance-foodservice-boston", "baldor-boston"],
+      "countsTowardLiveGateNow": false,
+      "reason": "Vendor-specific setup is documented, but HostGraph/pilot account authorization and a machine feed are not yet proven.",
+      "sources": ["https://help.marginedge.com/hc/en-us/articles/360047915114-Digital-Invoices-EDI-in-MarginEdge", "https://help.marginedge.com/hc/en-us/articles/4401855977875-Request-Your-Digital-EDI-Invoices"]
+    },
+    {
+      "name": "Fintech PaymentSource",
+      "role": "BEVERAGE_AND_GENERAL_INVOICE_INTEGRATION_CANDIDATE",
+      "verifiedBaselineVendors": [],
+      "countsTowardLiveGateNow": false,
+      "reason": "Fintech supports large-scale distributor invoice integration using EDI, APIs, CSV and custom formats, but the public preflight does not prove connectivity for each named baseline beverage vendor in an authorized pilot account.",
+      "sources": ["https://fintech.com/", "https://fintech.com/paymentsource-retailers", "https://fintech.com/paymentsource-retailers/invoice-data-management"]
+    }
+  ],
+  "hostGraphConfiguration": {
+    "protectedWorkflow": ".github/workflows/vendor-live-gate.yml",
+    "environmentName": "hostgraph-regional-live",
+    "declaredVendorSecretSlots": true,
+    "secretValuesVerified": false,
+    "liveWorkflowRunDuringPreflight": false,
+    "requiredConfigFields": ["BASE_URL", "READ_PATH", "ACCOUNT_ID", "AUTH_KIND", "TOKEN", "AUTHORIZATION_BASIS"],
+    "releaseHmacSecretReferenced": true,
+    "releaseHmacSecretValueVerified": false
+  },
+  "nextUnlock": {
+    "food": [
+      "Obtain Sysco API product entitlement and account-scoped read contract.",
+      "Initiate US Foods approved integration/EDI onboarding for the pilot account.",
+      "Select and authorize the Performance Foodservice EDI/system integration route.",
+      "Authorize a Baldor vendor-coordinated EDI/feed route.",
+      "Obtain a written Costa/Pro*Act machine-integration option."
+    ],
+    "beverage": [
+      "Determine whether the pilot account already uses Fintech PaymentSource or another authorized beverage intermediary.",
+      "Verify named distributor-by-distributor connectivity and machine export/API availability without portal automation.",
+      "If no aggregator path exists, obtain direct written API/EDI/integration onboarding from each blocked distributor."
+    ]
+  }
+}
