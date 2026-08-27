@@ -67,41 +67,47 @@ export default function InventoryPage() {
           aside={<span className="font-mono text-[11px] uppercase tracking-[0.2em] text-zinc-500">{response.data.source.recordCount} observations</span>}
         />
 
-        <div className="mt-6 overflow-hidden rounded-[28px] border border-white/8">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-white/8 text-left">
-              <thead className="bg-white/[0.03]">
-                <tr className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-                  <th className="px-4 py-3 font-medium">Item</th>
-                  <th className="px-4 py-3 font-medium">Location</th>
-                  <th className="px-4 py-3 font-medium">Vendor</th>
-                  <th className="px-4 py-3 font-medium">Quantity</th>
-                  <th className="px-4 py-3 font-medium">Unit</th>
-                  <th className="px-4 py-3 font-medium">Par</th>
-                  <th className="px-4 py-3 font-medium">Reorder point</th>
-                  <th className="px-4 py-3 font-medium">Observed</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/6 bg-black/10">
-                {response.data.items.map((item) => (
-                  <tr key={item.sourceRecordId}>
-                    <td className="px-4 py-4">
-                      <p className="font-medium text-white">{item.itemName}</p>
-                      <p className="mt-1 font-mono text-xs text-zinc-500">{item.sku ?? item.sourceRecordId}</p>
-                    </td>
-                    <td className="px-4 py-4 text-sm text-zinc-300">{item.locationName}</td>
-                    <td className="px-4 py-4 text-sm text-zinc-300">{item.vendorName ?? 'Unavailable'}</td>
-                    <td className="px-4 py-4 font-mono text-sm text-white">{displayNumber(item.quantity)}</td>
-                    <td className="px-4 py-4 font-mono text-sm text-zinc-300">{item.unit ?? 'Unavailable'}</td>
-                    <td className="px-4 py-4 font-mono text-sm text-zinc-300">{displayNumber(item.parLevel)}</td>
-                    <td className="px-4 py-4 font-mono text-sm text-zinc-300">{displayNumber(item.reorderPoint)}</td>
-                    <td className="px-4 py-4 font-mono text-xs text-zinc-500">{displayTimestamp(item.observedAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {response.data.items.length === 0 ? (
+          <div className="mt-6 rounded-[24px] border border-dashed border-white/10 bg-black/15 p-6 text-sm text-zinc-400">
+            No inventory observations are available for the active source.
           </div>
-        </div>
+        ) : (
+          <div className="mt-6 overflow-hidden rounded-[28px] border border-white/8">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-white/8 text-left">
+                <thead className="bg-white/[0.03]">
+                  <tr className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+                    <th className="px-4 py-3 font-medium">Item</th>
+                    <th className="px-4 py-3 font-medium">Location</th>
+                    <th className="px-4 py-3 font-medium">Vendor</th>
+                    <th className="px-4 py-3 font-medium">Quantity</th>
+                    <th className="px-4 py-3 font-medium">Unit</th>
+                    <th className="px-4 py-3 font-medium">Par</th>
+                    <th className="px-4 py-3 font-medium">Reorder point</th>
+                    <th className="px-4 py-3 font-medium">Observed</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/6 bg-black/10">
+                  {response.data.items.map((item) => (
+                    <tr key={item.sourceRecordId}>
+                      <td className="px-4 py-4">
+                        <p className="font-medium text-white">{item.itemName}</p>
+                        <p className="mt-1 font-mono text-xs text-zinc-500">{item.sku ?? item.sourceRecordId}</p>
+                      </td>
+                      <td className="px-4 py-4 text-sm text-zinc-300">{item.locationName}</td>
+                      <td className="px-4 py-4 text-sm text-zinc-300">{item.vendorName ?? 'Unavailable'}</td>
+                      <td className="px-4 py-4 font-mono text-sm text-white">{displayNumber(item.quantity)}</td>
+                      <td className="px-4 py-4 font-mono text-sm text-zinc-300">{item.unit ?? 'Unavailable'}</td>
+                      <td className="px-4 py-4 font-mono text-sm text-zinc-300">{displayNumber(item.parLevel)}</td>
+                      <td className="px-4 py-4 font-mono text-sm text-zinc-300">{displayNumber(item.reorderPoint)}</td>
+                      <td className="px-4 py-4 font-mono text-xs text-zinc-500">{displayTimestamp(item.observedAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </Surface>
 
       <Surface className="bg-white/[0.025]">
