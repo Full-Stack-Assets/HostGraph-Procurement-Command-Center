@@ -45,6 +45,14 @@ describe('reconciled procurement operator workspaces', () => {
     expect(source.toLowerCase()).not.toContain('you saved');
   });
 
+  it('never promotes a synthetic fixture timestamp into the verified-fetch status field', () => {
+    for (const page of ['InvoicesPage.tsx', 'InventoryPage.tsx', 'SupplierOpportunitiesPage.tsx']) {
+      const source = read(`client/src/pages/${page}`);
+      expect(source).toContain('fetchedAt={response.fetchedAt}');
+      expect(source).not.toContain('response.fetchedAt ?? response.data.source.freshAt');
+    }
+  });
+
   it('integrates all three workspaces through the canonical React Router shell', () => {
     const app = read('client/src/App.tsx');
     const routes = read('client/src/lib/routePrefetch.ts');
