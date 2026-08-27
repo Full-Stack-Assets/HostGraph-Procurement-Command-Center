@@ -53,6 +53,13 @@ describe('reconciled procurement operator workspaces', () => {
     }
   });
 
+  it('keeps synthetic invoice counts out of operational status metrics', () => {
+    const source = read('client/src/pages/InvoicesPage.tsx');
+    expect(source).toContain("response.mode === 'LIVE' ? response.data.invoices.length : null");
+    expect(source).toContain("response.mode === 'LIVE' ? reviewCount : null");
+    expect(source).toContain("response.mode === 'LIVE' ? exceptionCount : null");
+  });
+
   it('explains valid empty responses instead of rendering empty operator shells', () => {
     expect(read('client/src/pages/InvoicesPage.tsx')).toContain('No invoice records are available for the active source.');
     expect(read('client/src/pages/InventoryPage.tsx')).toContain('No inventory observations are available for the active source.');
