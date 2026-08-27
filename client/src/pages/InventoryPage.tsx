@@ -52,7 +52,7 @@ export default function InventoryPage() {
 
       <DataStatusRail
         mode={response.mode}
-        fetchedAt={response.fetchedAt ?? response.data.source.freshAt}
+        fetchedAt={response.fetchedAt}
         sourceCoverage={null}
         invoicesProcessed={null}
         invoicesAwaitingReview={null}
@@ -107,6 +107,7 @@ export default function InventoryPage() {
       <Surface className="bg-white/[0.025]">
         <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-500">Source provenance</p>
         <p className="mt-2 text-sm text-zinc-300">{response.data.source.sourceSystem}</p>
+        <p className="mt-2 text-xs text-zinc-500">Fixture/source timestamp: {response.data.source.freshAt}</p>
         <p className="mt-2 break-all font-mono text-xs text-zinc-500">{response.data.source.provenanceRef}</p>
       </Surface>
     </div>
