@@ -10,7 +10,6 @@ import {
   Boxes,
   ChartNoAxesCombined,
   CircleHelp,
-  FileChartColumnIncreasing,
   LayoutDashboard,
   Network,
   PackageSearch,
@@ -32,12 +31,13 @@ interface NavigationItem {
 const navItems: NavigationItem[] = [
   { label: 'Overview', to: '/', icon: LayoutDashboard },
   { label: 'Margins', to: '/margin-gap', icon: ChartNoAxesCombined },
-  { label: 'Orders', to: '/reorder', icon: ReceiptText },
+  { label: 'Invoices', to: '/invoices', icon: ReceiptText },
+  { label: 'Inventory', to: '/inventory', icon: Boxes },
+  { label: 'Orders', to: '/reorder', icon: PackageSearch },
   { label: 'Vendors', to: '/vendors', icon: Store },
+  { label: 'Supplier Opportunities', to: '/supplier-opportunities', icon: BadgeDollarSign },
   { label: 'Products', to: '/shrinkage', icon: Boxes },
-  { label: 'Credits', icon: BadgeDollarSign, hint: 'Workspace preview' },
   { label: 'Alerts', to: '/alerts', icon: BellRing },
-  { label: 'Reports', icon: FileChartColumnIncreasing, hint: 'Workspace preview' },
 ];
 
 const utilityItems: NavigationItem[] = [
@@ -100,7 +100,7 @@ function NavigationRow({ item }: { item: NavigationItem }) {
 
 export function HostGraphShell() {
   useEffect(() => {
-    prefetchCommonRoutes(['/margin-gap', '/alerts']);
+    prefetchCommonRoutes(['/margin-gap', '/invoices', '/alerts']);
   }, []);
 
   const modeLabel = configuredHostGraphMode === 'LIVE' ? 'Live data mode' : 'Demo data mode';
