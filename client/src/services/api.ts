@@ -19,6 +19,11 @@ import {
   type InvoiceJobStatusResponse,
   type InvoiceUploadResponse,
 } from '@shared/contracts/analytics';
+import {
+  InvoiceWorkspaceResponseSchema,
+  InventoryWorkspaceResponseSchema,
+  SupplierOpportunityResponseSchema,
+} from '@shared/contracts/procurementWorkspaces';
 import { sha256File, validateInvoiceFile } from '@/features/invoices/fileValidation';
 
 export type { InvoiceJobStatusResponse, InvoiceUploadResponse } from '@shared/contracts/analytics';
@@ -189,6 +194,9 @@ export const api = {
   getVendorsScorecard: () => requestValidated('/api/v1/vendors/scorecard', VendorResponseSchema),
   getPriceTrends: () => requestValidated('/api/v1/price-trends', PriceTrendPointListSchema),
   getAlerts: () => requestValidated('/api/v1/alerts', AlertsResponseSchema),
+  getInvoicesWorkspace: () => requestValidated('/api/v1/invoices', InvoiceWorkspaceResponseSchema),
+  getInventoryWorkspace: () => requestValidated('/api/v1/inventory', InventoryWorkspaceResponseSchema),
+  getSupplierOpportunities: () => requestValidated('/api/v1/supplier-opportunities', SupplierOpportunityResponseSchema),
   getInvoiceQueue: async (): Promise<IngestionQueueResponse> => {
     const response = await requestFirstAvailable(
       ['/api/v1/invoices/queue', '/api/v1/invoices/history', '/api/v1/invoices/status', '/api/v1/invoices/uploads'],
