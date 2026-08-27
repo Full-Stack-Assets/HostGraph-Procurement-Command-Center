@@ -13,8 +13,11 @@ import NotFound from './pages/NotFound';
 
 const DashboardPage = lazy(routeModules['/']);
 const MarginGapPage = lazy(routeModules['/margin-gap']);
+const InvoicesPage = lazy(routeModules['/invoices']);
+const InventoryPage = lazy(routeModules['/inventory']);
 const ReorderPage = lazy(routeModules['/reorder']);
 const VendorsPage = lazy(routeModules['/vendors']);
+const SupplierOpportunitiesPage = lazy(routeModules['/supplier-opportunities']);
 const ShrinkagePage = lazy(routeModules['/shrinkage']);
 const AlertsPage = lazy(routeModules['/alerts']);
 
@@ -37,8 +40,11 @@ function AppRouter() {
           <Route element={<HostGraphShell />}>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/margin-gap" element={<MarginGapPage />} />
+            <Route path="/invoices" element={<InvoicesPage />} />
+            <Route path="/inventory" element={<InventoryPage />} />
             <Route path="/reorder" element={<ReorderPage />} />
             <Route path="/vendors" element={<VendorsPage />} />
+            <Route path="/supplier-opportunities" element={<SupplierOpportunitiesPage />} />
             <Route path="/shrinkage" element={<ShrinkagePage />} />
             <Route path="/alerts" element={<AlertsPage />} />
             <Route path="/home" element={<Navigate to="/" replace />} />
