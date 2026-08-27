@@ -53,6 +53,12 @@ describe('reconciled procurement operator workspaces', () => {
     }
   });
 
+  it('explains valid empty responses instead of rendering empty operator shells', () => {
+    expect(read('client/src/pages/InvoicesPage.tsx')).toContain('No invoice records are available for the active source.');
+    expect(read('client/src/pages/InventoryPage.tsx')).toContain('No inventory observations are available for the active source.');
+    expect(read('client/src/pages/SupplierOpportunitiesPage.tsx')).toContain('No supplier opportunities are available for the active source.');
+  });
+
   it('integrates all three workspaces through the canonical React Router shell', () => {
     const app = read('client/src/App.tsx');
     const routes = read('client/src/lib/routePrefetch.ts');
