@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { api, HostGraphApiError } from '@/services/api';
 import { dashboardSummary } from '@/data/mockData';
+import {
+  invoiceWorkspaceFixture,
+  inventoryWorkspaceFixture,
+  supplierOpportunityFixture,
+} from '@/data/procurementWorkspaceFixtures';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -67,5 +72,40 @@ describe('HostGraph API client', () => {
     const error = new HostGraphApiError('TIMEOUT', 'Timed out', undefined, 'corr-1');
     expect(error.kind).toBe('TIMEOUT');
     expect(error.correlationId).toBe('corr-1');
+  });
+
+  it.each([
+    ['invoice workspace', 'getInvoicesWorkspace', '/api/v1/invoices', invoiceWorkspaceFixture],
+    ['inventory workspace', 'getInventoryWorkspace', '/api/v1/inventory', inventoryWorkspaceFixture],
+    ['supplier opportunities', 'getSupplierOpportunities', '/api/v1/supplier-opportunities', supplierOpportunityFixture],
+  ] as const)('reads the %s through its canonical validated endpoint', async (_label, method, path, payload) => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(api[method]()).resolves.toEqual(payload);
+    expect(fetchMock).toHaveBeenCalledWith(path, expect.any(Object));
+  });
+
+  it('rejects malformed supplier-opportunity responses as SCHEMA errors', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            ...supplierOpportunityFixture,
+            opportunities: [{ ...supplierOpportunityFixture.opportunities[0], evidenceState: 'REALIZED' }],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      ),
+    );
+
+    await expect(api.getSupplierOpportunities()).rejects.toBeInstanceOf(HostGraphApiError);
+    await expect(api.getSupplierOpportunities()).rejects.toMatchObject({ kind: 'SCHEMA' });
   });
 });
