@@ -72,41 +72,47 @@ export default function InvoicesPage() {
           aside={<span className="font-mono text-[11px] uppercase tracking-[0.2em] text-zinc-500">{response.data.source.recordCount} source records</span>}
         />
 
-        <div className="mt-6 overflow-hidden rounded-[28px] border border-white/8">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-white/8 text-left">
-              <thead className="bg-white/[0.03]">
-                <tr className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-                  <th className="px-4 py-3 font-medium">Vendor</th>
-                  <th className="px-4 py-3 font-medium">Invoice</th>
-                  <th className="px-4 py-3 font-medium">Date</th>
-                  <th className="px-4 py-3 font-medium">State</th>
-                  <th className="px-4 py-3 font-medium">Total</th>
-                  <th className="px-4 py-3 font-medium">Exceptions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/6 bg-black/10">
-                {response.data.invoices.map((invoice) => (
-                  <tr key={invoice.id}>
-                    <td className="px-4 py-4">
-                      <p className="font-medium text-white">{invoice.vendorName}</p>
-                      <p className="mt-1 font-mono text-xs text-zinc-500">{invoice.sourceRecordId}</p>
-                    </td>
-                    <td className="px-4 py-4 font-mono text-sm text-zinc-200">{invoice.invoiceNumber ?? 'Unavailable'}</td>
-                    <td className="px-4 py-4 text-sm text-zinc-300">{invoice.documentDate}</td>
-                    <td className="px-4 py-4">
-                      <span className={`inline-flex rounded-full border px-3 py-1 font-mono text-[11px] uppercase tracking-[0.16em] ${stateTone(invoice.state)}`}>
-                        {invoice.state}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 font-mono text-sm text-white">{formatMoney(invoice.totalAmount, invoice.currency)}</td>
-                    <td className="px-4 py-4 font-mono text-sm text-zinc-300">{invoice.exceptionCount}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {response.data.invoices.length === 0 ? (
+          <div className="mt-6 rounded-[24px] border border-dashed border-white/10 bg-black/15 p-6 text-sm text-zinc-400">
+            No invoice records are available for the active source.
           </div>
-        </div>
+        ) : (
+          <div className="mt-6 overflow-hidden rounded-[28px] border border-white/8">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-white/8 text-left">
+                <thead className="bg-white/[0.03]">
+                  <tr className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+                    <th className="px-4 py-3 font-medium">Vendor</th>
+                    <th className="px-4 py-3 font-medium">Invoice</th>
+                    <th className="px-4 py-3 font-medium">Date</th>
+                    <th className="px-4 py-3 font-medium">State</th>
+                    <th className="px-4 py-3 font-medium">Total</th>
+                    <th className="px-4 py-3 font-medium">Exceptions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/6 bg-black/10">
+                  {response.data.invoices.map((invoice) => (
+                    <tr key={invoice.id}>
+                      <td className="px-4 py-4">
+                        <p className="font-medium text-white">{invoice.vendorName}</p>
+                        <p className="mt-1 font-mono text-xs text-zinc-500">{invoice.sourceRecordId}</p>
+                      </td>
+                      <td className="px-4 py-4 font-mono text-sm text-zinc-200">{invoice.invoiceNumber ?? 'Unavailable'}</td>
+                      <td className="px-4 py-4 text-sm text-zinc-300">{invoice.documentDate}</td>
+                      <td className="px-4 py-4">
+                        <span className={`inline-flex rounded-full border px-3 py-1 font-mono text-[11px] uppercase tracking-[0.16em] ${stateTone(invoice.state)}`}>
+                          {invoice.state}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 font-mono text-sm text-white">{formatMoney(invoice.totalAmount, invoice.currency)}</td>
+                      <td className="px-4 py-4 font-mono text-sm text-zinc-300">{invoice.exceptionCount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </Surface>
 
       <Surface className="bg-white/[0.025]">
