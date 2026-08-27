@@ -34,7 +34,6 @@ export default function InvoicesPage() {
 
   if (response.loading) return <LoadingPanel label="Loading invoice evidence workspace…" />;
 
-  const verifiedCount = response.data.invoices.filter((invoice) => invoice.state === 'VERIFIED').length;
   const reviewCount = response.data.invoices.filter((invoice) => invoice.state === 'REVIEW').length;
   const exceptionCount = response.data.invoices.reduce((total, invoice) => total + invoice.exceptionCount, 0);
   const synthetic = response.data.source.kind === 'SYNTHETIC_FIXTURE';
@@ -59,9 +58,9 @@ export default function InvoicesPage() {
         mode={response.mode}
         fetchedAt={response.fetchedAt}
         sourceCoverage={null}
-        invoicesProcessed={verifiedCount}
-        invoicesAwaitingReview={reviewCount}
-        dataExceptions={exceptionCount}
+        invoicesProcessed={response.mode === 'LIVE' ? response.data.invoices.length : null}
+        invoicesAwaitingReview={response.mode === 'LIVE' ? reviewCount : null}
+        dataExceptions={response.mode === 'LIVE' ? exceptionCount : null}
       />
 
       <Surface>
