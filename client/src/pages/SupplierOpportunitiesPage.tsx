@@ -62,49 +62,55 @@ export default function SupplierOpportunitiesPage() {
           aside={<span className="font-mono text-[11px] uppercase tracking-[0.2em] text-zinc-500">{response.data.source.recordCount} candidates</span>}
         />
 
-        <div className="mt-6 grid gap-4 xl:grid-cols-2">
-          {response.data.opportunities.map((opportunity) => (
-            <article key={opportunity.id} className="rounded-[28px] border border-white/8 bg-gradient-to-br from-white/[0.045] to-white/[0.02] p-5">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-violet-200">Detected opportunity</p>
-                  <h3 className="mt-2 text-lg font-semibold text-white">{opportunity.currentItemName}</h3>
-                  <p className="mt-2 text-sm text-zinc-400">Current vendor: {opportunity.currentVendorName}</p>
+        {response.data.opportunities.length === 0 ? (
+          <div className="mt-6 rounded-[24px] border border-dashed border-white/10 bg-black/15 p-6 text-sm text-zinc-400">
+            No supplier opportunities are available for the active source.
+          </div>
+        ) : (
+          <div className="mt-6 grid gap-4 xl:grid-cols-2">
+            {response.data.opportunities.map((opportunity) => (
+              <article key={opportunity.id} className="rounded-[28px] border border-white/8 bg-gradient-to-br from-white/[0.045] to-white/[0.02] p-5">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-violet-200">Detected opportunity</p>
+                    <h3 className="mt-2 text-lg font-semibold text-white">{opportunity.currentItemName}</h3>
+                    <p className="mt-2 text-sm text-zinc-400">Current vendor: {opportunity.currentVendorName}</p>
+                  </div>
+                  <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.16em] text-amber-100">
+                    {opportunity.evidenceState}
+                  </span>
                 </div>
-                <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.16em] text-amber-100">
-                  {opportunity.evidenceState}
-                </span>
-              </div>
 
-              <div className="mt-5 rounded-2xl border border-cyan-400/15 bg-cyan-400/[0.06] p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-cyan-200">Candidate alternative</p>
-                <p className="mt-2 font-medium text-white">{opportunity.candidateVendorName}</p>
-                <p className="mt-1 text-sm text-zinc-400">{opportunity.candidateItemName}</p>
-              </div>
+                <div className="mt-5 rounded-2xl border border-cyan-400/15 bg-cyan-400/[0.06] p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-cyan-200">Candidate alternative</p>
+                  <p className="mt-2 font-medium text-white">{opportunity.candidateVendorName}</p>
+                  <p className="mt-1 text-sm text-zinc-400">{opportunity.candidateItemName}</p>
+                </div>
 
-              <dl className="mt-5 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-white/7 bg-black/20 p-3">
-                  <dt className="text-xs text-zinc-500">Current price</dt>
-                  <dd className="mt-2 font-mono text-sm text-white">{formatMoney(opportunity.currentPrice, opportunity.currency)}</dd>
-                </div>
-                <div className="rounded-2xl border border-white/7 bg-black/20 p-3">
-                  <dt className="text-xs text-zinc-500">Candidate price</dt>
-                  <dd className="mt-2 font-mono text-sm text-white">{formatMoney(opportunity.candidatePrice, opportunity.currency)}</dd>
-                </div>
-                <div className="rounded-2xl border border-white/7 bg-black/20 p-3">
-                  <dt className="text-xs text-zinc-500">Estimated variance</dt>
-                  <dd className="mt-2 font-mono text-sm text-violet-100">{formatMoney(opportunity.estimatedVariance, opportunity.currency)}</dd>
-                </div>
-              </dl>
+                <dl className="mt-5 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-white/7 bg-black/20 p-3">
+                    <dt className="text-xs text-zinc-500">Current price</dt>
+                    <dd className="mt-2 font-mono text-sm text-white">{formatMoney(opportunity.currentPrice, opportunity.currency)}</dd>
+                  </div>
+                  <div className="rounded-2xl border border-white/7 bg-black/20 p-3">
+                    <dt className="text-xs text-zinc-500">Candidate price</dt>
+                    <dd className="mt-2 font-mono text-sm text-white">{formatMoney(opportunity.candidatePrice, opportunity.currency)}</dd>
+                  </div>
+                  <div className="rounded-2xl border border-white/7 bg-black/20 p-3">
+                    <dt className="text-xs text-zinc-500">Estimated variance</dt>
+                    <dd className="mt-2 font-mono text-sm text-violet-100">{formatMoney(opportunity.estimatedVariance, opportunity.currency)}</dd>
+                  </div>
+                </dl>
 
-              <p className="mt-5 text-sm leading-6 text-zinc-400">{opportunity.comparisonBasis}</p>
-              <div className="mt-4 flex flex-wrap gap-3 font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                <span>Confidence {(opportunity.confidence * 100).toFixed(0)}%</span>
-                <span>{opportunity.sourceRecordIds.length} source record{opportunity.sourceRecordIds.length === 1 ? '' : 's'}</span>
-              </div>
-            </article>
-          ))}
-        </div>
+                <p className="mt-5 text-sm leading-6 text-zinc-400">{opportunity.comparisonBasis}</p>
+                <div className="mt-4 flex flex-wrap gap-3 font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+                  <span>Confidence {(opportunity.confidence * 100).toFixed(0)}%</span>
+                  <span>{opportunity.sourceRecordIds.length} source record{opportunity.sourceRecordIds.length === 1 ? '' : 's'}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </Surface>
 
       <Surface className="bg-white/[0.025]">
