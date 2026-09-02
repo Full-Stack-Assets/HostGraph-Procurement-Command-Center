@@ -4,8 +4,11 @@ import { describe, expect, it } from 'vitest';
 const pages = [
   'client/src/pages/DashboardPage.tsx',
   'client/src/pages/MarginGapPage.tsx',
+  'client/src/pages/InvoicesPage.tsx',
+  'client/src/pages/InventoryPage.tsx',
   'client/src/pages/ReorderPage.tsx',
   'client/src/pages/VendorsPage.tsx',
+  'client/src/pages/SupplierOpportunitiesPage.tsx',
   'client/src/pages/ShrinkagePage.tsx',
   'client/src/pages/AlertsPage.tsx',
 ];

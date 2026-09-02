@@ -4,8 +4,11 @@
 export const routeModules = {
   '/': () => import('@/pages/DashboardPage'),
   '/margin-gap': () => import('@/pages/MarginGapPage'),
+  '/invoices': () => import('@/pages/InvoicesPage'),
+  '/inventory': () => import('@/pages/InventoryPage'),
   '/reorder': () => import('@/pages/ReorderPage'),
   '/vendors': () => import('@/pages/VendorsPage'),
+  '/supplier-opportunities': () => import('@/pages/SupplierOpportunitiesPage'),
   '/shrinkage': () => import('@/pages/ShrinkagePage'),
   '/alerts': () => import('@/pages/AlertsPage'),
 } as const;
